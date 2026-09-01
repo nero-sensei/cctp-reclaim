@@ -104,11 +104,7 @@ export function Checkbox({
   hint?: string;
 }) {
   return (
-    <label
-      className={`rule group flex cursor-pointer select-none items-start gap-3 rounded-xl border px-3.5 py-3 transition-colors duration-150 ${
-        checked ? "border-[var(--fg)]" : "hover:border-[var(--muted)]"
-      }`}
-    >
+    <label className="group flex cursor-pointer select-none items-start gap-3">
       <input
         type="checkbox"
         checked={checked}

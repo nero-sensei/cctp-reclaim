@@ -329,7 +329,7 @@ export default function App() {
                           </p>
                         )}
 
-                        <div className="mt-6 flex flex-col gap-3 lg:max-w-[300px]">
+                        <div className="mt-6 flex flex-col gap-4 lg:max-w-[300px]">
                           {succeeded ? null : batches.length > 0 ? (
                             <>
                               {batches.length > 1 && !busy && status !== "done" && (
