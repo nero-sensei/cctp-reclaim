@@ -1,0 +1,301 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+  --bg: #fcfcfd;
+  --fg: #0b0b0c;
+  --muted: #6b6c71;
+  --faint: #707177;
+  --line: rgba(11, 11, 12, 0.09);
+  --accent: #2775ca;
+  --success: #0f9960;
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #0b0b0c;
+  --fg: #f2f2f3;
+  --muted: #93949a;
+  --faint: #9a9ba1;
+  --line: rgba(255, 255, 255, 0.1);
+  --accent: #4a94e0;
+  --success: #35c17f;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  touch-action: manipulation;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "ss01", "cv01", "tnum";
+  letter-spacing: -0.01em;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.faint {
+  color: var(--faint);
+}
+
+.accent {
+  color: var(--accent);
+}
+
+.rule {
+  border-color: var(--line);
+}
+
+.t-2xs {
+  font-size: 11px;
+}
+
+.t-xs {
+  font-size: 12.5px;
+}
+
+.t-sm {
+  font-size: 13.5px;
+}
+
+.t-base {
+  font-size: 14.5px;
+}
+
+.t-lg {
+  font-size: 19px;
+}
+
+.t-symbol {
+  font-size: 30px;
+}
+
+.t-display {
+  font-size: 64px;
+  line-height: 0.9;
+}
+
+.t-amount {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.eyebrow {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.display {
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  font-variant-numeric: tabular-nums;
+}
+
+.wallet-adapter-button-trigger {
+  background: transparent !important;
+  color: var(--fg) !important;
+  height: 33px !important;
+  padding: 0 14px !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 8px !important;
+  white-space: nowrap;
+  transition-property: border-color, scale;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.wallet-adapter-button-trigger:active {
+  scale: 0.96;
+}
+
+.wallet-adapter-button-trigger * {
+  color: var(--fg) !important;
+}
+
+.wallet-adapter-button-trigger:hover {
+  border-color: var(--fg) !important;
+  background: transparent !important;
+}
+
+.wallet-adapter-modal-overlay {
+  background: rgba(0, 0, 0, 0.55) !important;
+  backdrop-filter: blur(6px);
+}
+
+.wallet-adapter-modal-wrapper {
+  background: var(--bg) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 16px !important;
+  box-shadow: none !important;
+  max-width: 340px !important;
+  padding: 20px !important;
+  font-family: inherit !important;
+}
+
+.wallet-adapter-modal-title {
+  color: var(--fg) !important;
+  font-size: 14.5px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.35 !important;
+  text-align: left !important;
+  padding: 0 40px 14px 0 !important;
+}
+
+.wallet-adapter-modal-button-close {
+  background: transparent !important;
+  top: 16px !important;
+  right: 16px !important;
+  width: 26px !important;
+  height: 26px !important;
+  padding: 5px !important;
+  border-radius: 999px !important;
+  transition: background-color 150ms;
+}
+
+.wallet-adapter-modal-button-close:hover {
+  background: var(--line) !important;
+}
+
+.wallet-adapter-modal-button-close svg {
+  fill: var(--muted) !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.wallet-adapter-modal-list {
+  margin: 0 !important;
+}
+
+.wallet-adapter-modal-list li:not(:first-child) {
+  margin-top: 0 !important;
+}
+
+.wallet-adapter-modal-list .wallet-adapter-button {
+  background: transparent !important;
+  border-top: 1px solid var(--line) !important;
+  border-radius: 0 !important;
+  color: var(--fg) !important;
+  font-family: inherit !important;
+  font-size: 14.5px !important;
+  font-weight: 500 !important;
+  height: 52px !important;
+  padding: 0 !important;
+  transition: opacity 150ms;
+}
+
+.wallet-adapter-modal-list .wallet-adapter-button:hover {
+  background: transparent !important;
+  opacity: 0.6;
+}
+
+.wallet-adapter-modal-list .wallet-adapter-button-start-icon {
+  width: 22px !important;
+  height: 22px !important;
+  margin-right: 10px !important;
+}
+
+.wallet-adapter-modal-list .wallet-adapter-button span {
+  color: var(--faint) !important;
+  font-size: 12.5px !important;
+  font-weight: 400 !important;
+  margin-left: auto !important;
+}
+
+.wallet-adapter-modal-list-more {
+  color: var(--muted) !important;
+  font-family: inherit !important;
+  font-size: 12.5px !important;
+  padding: 14px 0 0 !important;
+}
+
+.wallet-adapter-modal-list-more svg {
+  stroke: var(--muted) !important;
+}
+
+.wallet-adapter-dropdown-list {
+  background: var(--bg) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  padding: 6px !important;
+  grid-row-gap: 2px !important;
+  font-family: inherit !important;
+}
+
+.wallet-adapter-dropdown-list-item {
+  background: transparent !important;
+  border-radius: 8px !important;
+  color: var(--fg) !important;
+  font-family: inherit !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  height: 36px !important;
+  justify-content: flex-start !important;
+  padding: 0 12px !important;
+  transition: background-color 150ms;
+}
+
+.wallet-adapter-dropdown-list-item:not([disabled]):hover {
+  background: var(--line) !important;
+}
+
+.wallet-adapter-modal-collapse-button svg,
+.wallet-adapter-modal-list-more svg {
+  fill: var(--muted) !important;
+  stroke: var(--muted) !important;
+}
+
+.wallet-adapter-modal-middle {
+  padding: 0 !important;
+}
+
+.wallet-adapter-modal-middle-button {
+  background: var(--fg) !important;
+  border-radius: 8px !important;
+  color: var(--bg) !important;
+  font-family: inherit !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  margin-top: 16px !important;
+  padding: 12px !important;
+}
+
+.scroller {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+.scroller::-webkit-scrollbar {
+  height: 6px;
+}
+
+.scroller::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 3px;
+}

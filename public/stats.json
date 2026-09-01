@@ -1,0 +1,16 @@
+{
+  "generatedAt": "2026-09-01T07:54:40.531Z",
+  "accounts": 894672,
+  "lamports": 2896329268783,
+  "wallets": 257299,
+  "v1": {
+    "accounts": 672222,
+    "lamports": 1966100582602,
+    "wallets": 221818
+  },
+  "v2": {
+    "accounts": 222450,
+    "lamports": 930228686181,
+    "wallets": 44231
+  }
+}
