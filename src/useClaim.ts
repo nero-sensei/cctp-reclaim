@@ -200,11 +200,15 @@ export function useClaim() {
             await connection.confirmTransaction(signature, "confirmed");
 
             if (current()) {
+              const closed = new Set(group[index].accounts.map((a) => a.address.toBase58()));
+
               setState((s) => ({
                 ...s,
                 signatures: [...s.signatures, signature],
                 claimed: s.claimed + group[index].accounts.length,
                 recovered: s.recovered + group[index].lamports,
+                accounts: s.accounts.filter((a) => !closed.has(a.address.toBase58())),
+                batches: s.batches.filter((b) => b !== group[index]),
               }));
             }
           } catch (error) {

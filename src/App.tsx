@@ -305,7 +305,7 @@ export default function App() {
                         <Skeleton className="h-9 w-40" />
                         <Skeleton className="h-11 w-full lg:w-[300px]" />
                       </div>
-                    ) : accounts.length === 0 ? (
+                    ) : accounts.length === 0 && !showRecovered ? (
                       <p className="muted mt-4 max-w-[38ch] t-sm leading-relaxed">
                         No open CCTP accounts here. Try the wallet you bridged with.
                       </p>
@@ -401,30 +401,23 @@ export default function App() {
                                 {claim.claimed} account{claim.claimed === 1 ? "" : "s"} closed
                               </span>
                             </div>
-                            {partial && (
-                              <span className="muted t-xs leading-relaxed">
-                                {claim.failed} of {claim.failed + claim.signatures.length}{" "}
-                                transactions failed.
-                              </span>
-                            )}
-
                             <div className="flex items-center gap-4">
-                              {claim.signatures[0] && (
-                                <a
-                                  href={`https://solscan.io/tx/${claim.signatures[0]}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="muted t-xs underline underline-offset-4 hover:text-[var(--fg)]"
-                                >
-                                  View transaction
-                                </a>
-                              )}
-                              <button
-                                onClick={scan}
+                              <a
+                                href={`https://solscan.io/account/${publicKey.toBase58()}`}
+                                target="_blank"
+                                rel="noreferrer"
                                 className="muted t-xs underline underline-offset-4 hover:text-[var(--fg)]"
                               >
-                                Scan again
-                              </button>
+                                View on Solscan
+                              </a>
+                              {succeeded && (
+                                <button
+                                  onClick={scan}
+                                  className="muted t-xs underline underline-offset-4 hover:text-[var(--fg)]"
+                                >
+                                  Scan again
+                                </button>
+                              )}
                             </div>
                           </m.div>
                         )}
