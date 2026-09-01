@@ -118,7 +118,7 @@ export function planBatches(claimables: Claimable[], feePayer: PublicKey): Batch
     }
 
     if (current.instructions.length === 0 && sizeOf([instruction], feePayer) > MAX_TX_BYTES) {
-      throw new Error(`${claimable.account.address.toBase58()}: reclaim exceeds ${MAX_TX_BYTES} bytes`);
+      continue;
     }
 
     current.instructions.push(instruction);

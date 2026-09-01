@@ -26,6 +26,7 @@ interface State {
   pending: number;
   skipped: number;
   topUp: number;
+  attempting: number;
   signingAt: number;
   signatures: string[];
   claimed: number;
@@ -41,6 +42,7 @@ const initial: State = {
   pending: 0,
   skipped: 0,
   topUp: 0,
+  attempting: 0,
   signingAt: 0,
   signatures: [],
   claimed: 0,
@@ -105,12 +107,8 @@ export function useClaim() {
         }
       }
 
-      let planned: Batch[] = [];
-      try {
-        planned = claimables.length > 0 ? planBatches(claimables, owner) : [];
-      } catch {
-        skipped += claimables.length;
-      }
+      const planned = claimables.length > 0 ? planBatches(claimables, owner) : [];
+      skipped += claimables.length - planned.reduce((sum, b) => sum + b.accounts.length, 0);
 
       if (!current()) return;
 
@@ -144,6 +142,7 @@ export function useClaim() {
     setState((s) => ({
       ...s,
       status: "signing",
+      attempting: state.batches.length,
       signingAt: 0,
       claimed: 0,
       recovered: 0,
@@ -155,7 +154,7 @@ export function useClaim() {
     let last: unknown = null;
     let signed = 0;
 
-    const chunk = oneAtATime ? 1 : state.batches.length;
+    const chunk = oneAtATime || !signAllTransactions ? 1 : state.batches.length;
 
     for (let start = 0; start < state.batches.length; start += chunk) {
       if (!current()) {
@@ -188,6 +187,7 @@ export function useClaim() {
       }
 
       signed += group.length;
+      let rejected = false;
       setState((s) => ({ ...s, status: "claiming" }));
 
       await Promise.all(
@@ -214,10 +214,13 @@ export function useClaim() {
           } catch (error) {
             console.error(error);
             last = error;
+            rejected = true;
             if (current()) setState((s) => ({ ...s, failed: s.failed + 1 }));
           }
         })
       );
+
+      if (rejected && !signAllTransactions) break;
     }
 
     busy.current = false;

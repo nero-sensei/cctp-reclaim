@@ -164,6 +164,20 @@ test("packs v2 reclaims one per transaction", () => {
   );
 });
 
+test("skips an oversized reclaim instead of dropping the whole batch", () => {
+  const huge = claimable("v2");
+  huge.attestation = {
+    attestation: Buffer.alloc(130, 1),
+    destinationMessage: Buffer.alloc(1400, 2),
+  };
+
+  const batches = planBatches([claimable("v1"), huge, claimable("v1")], payer);
+  const planned = batches.reduce((sum, b) => sum + b.accounts.length, 0);
+
+  assert.equal(planned, 2);
+  assert.ok(batches.every((b) => b.accounts.every((a) => a.version === "v1")));
+});
+
 test("never exceeds the transaction size limit and loses nothing", () => {
   const items = [
     ...Array.from({ length: 9 }, () => claimable("v1")),

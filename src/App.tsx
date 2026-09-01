@@ -99,7 +99,7 @@ function Waiting({ accounts }: { accounts: EventAccount[] }) {
 }
 
 export default function App() {
-  const { publicKey } = useWallet();
+  const { publicKey, signAllTransactions } = useWallet();
   const { setVisible } = useWalletModal();
   const { dark, toggle } = useTheme();
   const { hardware, setHardware } = useHardwareWallet();
@@ -161,7 +161,8 @@ export default function App() {
 
   const total = accounts.reduce((sum, a) => sum + a.lamports, 0);
   const settled = claim.signatures.length + claim.failed;
-  const progress = batches.length === 0 ? 0 : settled / batches.length;
+  const attempting = claim.attempting;
+  const progress = attempting === 0 ? 0 : Math.min(1, settled / attempting);
   const toUsd = (lamports: number) => (price === null ? null : (lamports / 1e9) * price);
   const scanning = status === "scanning";
   const succeeded = status === "done" && claim.claimed > 0 && !claim.error;
@@ -199,7 +200,7 @@ export default function App() {
             : status === "signing"
               ? "Waiting for your wallet"
               : status === "claiming"
-                ? `Reclaiming ${Math.min(settled + 1, batches.length)} of ${batches.length}`
+                ? `Reclaiming ${Math.min(settled + 1, attempting)} of ${attempting}`
                 : status === "done" && claim.claimed > 0
                   ? `Reclaimed ${claim.claimed} accounts`
                   : ""}
@@ -332,18 +333,26 @@ export default function App() {
                         <div className="mt-6 flex flex-col gap-4 lg:max-w-[300px]">
                           {succeeded ? null : batches.length > 0 ? (
                             <>
-                              {batches.length > 1 && !busy && status !== "done" && (
-                                <Checkbox
-                                  checked={hardware}
-                                  onChange={setHardware}
-                                  label="Using a hardware wallet"
-                                  hint={
-                                    hardware
-                                      ? `${batches.length} approvals, one per transaction. Each is sent before the next, so none expire while you confirm on the device.`
-                                      : `One approval covers all ${batches.length} transactions.`
-                                  }
-                                />
-                              )}
+                              {batches.length > 1 &&
+                                !busy &&
+                                status !== "done" &&
+                                (signAllTransactions ? (
+                                  <Checkbox
+                                    checked={hardware}
+                                    onChange={setHardware}
+                                    label="Using a hardware wallet"
+                                    hint={
+                                      hardware
+                                        ? `${batches.length} approvals, one per transaction. Each is sent before the next, so none expire while you confirm on the device.`
+                                        : `One approval covers all ${batches.length} transactions.`
+                                    }
+                                  />
+                                ) : (
+                                  <span className="muted t-xs leading-relaxed">
+                                    Your wallet approves one transaction at a time, so it will ask{" "}
+                                    {batches.length} times.
+                                  </span>
+                                ))}
 
                               <Button
                                 onClick={claim.error ? scan : () => claim.claim(hardware)}
@@ -352,10 +361,10 @@ export default function App() {
                               >
                                 {status === "signing"
                                   ? hardware && batches.length > 1
-                                    ? `Confirm ${claim.signingAt + 1} of ${batches.length} in your wallet`
+                                    ? `Confirm ${claim.signingAt + 1} of ${attempting} in your wallet`
                                     : "Confirm in your wallet"
                                   : status === "claiming"
-                                    ? `Reclaiming ${Math.min(settled + 1, batches.length)} of ${batches.length}`
+                                    ? `Reclaiming ${Math.min(settled + 1, attempting)} of ${attempting}`
                                     : status === "done"
                                       ? "Scan again"
                                       : claim.error
@@ -401,6 +410,13 @@ export default function App() {
                                 {claim.claimed} account{claim.claimed === 1 ? "" : "s"} closed
                               </span>
                             </div>
+                            {claim.failed > 0 && (
+                              <span className="muted t-xs leading-relaxed">
+                                {claim.failed} transaction{claim.failed === 1 ? "" : "s"} did not go
+                                through. Scan again to retry.
+                              </span>
+                            )}
+
                             <div className="flex items-center gap-4">
                               <a
                                 href={`https://solscan.io/account/${publicKey.toBase58()}`}
