@@ -133,10 +133,10 @@ async function pushToRepo(stats: Stats): Promise<void> {
   }
 
   await git("add", "public/stats.json");
-  await git("commit", "--quiet", "--amend", "--no-edit");
-  await git("push", "--quiet", "--force-with-lease", "origin", "HEAD:main");
+  await git("commit", "--quiet", "-m", `chore: stats ${stats.generatedAt.slice(0, 10)}`);
+  await git("push", "--quiet", "origin", "HEAD:main");
 
-  log("pushed stats.json (amended, history stays at one commit)");
+  log("pushed stats.json, cloudflare will rebuild");
 }
 
 async function once(): Promise<void> {
