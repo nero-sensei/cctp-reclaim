@@ -315,7 +315,7 @@ export default function App() {
                               type="button"
                               onClick={handleAddressSubmit}
                               disabled={addressLoading || !addressInput.trim()}
-                              className="shrink-0 rounded-lg border border-[var(--line)] px-3 py-2.5 t-sm font-medium text-[var(--fg)] transition-[opacity] duration-150 hover:opacity-80 disabled:opacity-30"
+                              className="shrink-0 rounded-lg bg-[var(--fg)] px-3 py-2.5 t-sm font-medium text-[var(--bg)] transition-[opacity,scale] duration-150 ease-[cubic-bezier(0.2,0,0,1)] hover:opacity-90 active:scale-[0.96] disabled:opacity-30"
                             >
                               {addressLoading ? "…" : "Check"}
                             </button>
