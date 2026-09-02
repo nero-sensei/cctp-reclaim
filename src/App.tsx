@@ -1,9 +1,11 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton, useWalletModal } from "@solana/wallet-adapter-react-ui";
-import { EventAccount, RECLAIM_WINDOW_SECS, isUnlocked } from "./cctp";
+import { PublicKey } from "@solana/web3.js";
+import { EventAccount, RECLAIM_WINDOW_SECS, isUnlocked, scanWallet } from "./cctp";
 import { V1_RETIREMENT_BEGINS } from "./deprecation";
+import { friendlyError } from "./errors";
 import Footer from "./Footer";
 
 const Docs = lazy(() => import("./Docs"));
@@ -98,11 +100,16 @@ function Waiting({ accounts }: { accounts: EventAccount[] }) {
   );
 }
 
+interface AddressResult {
+  accounts: EventAccount[];
+}
+
 export default function App() {
   const { publicKey, signAllTransactions } = useWallet();
   const { setVisible } = useWalletModal();
   const { dark, toggle } = useTheme();
   const { hardware, setHardware } = useHardwareWallet();
+  const { connection } = useConnection();
   const claim = useClaim();
   const hash = useHash();
   const docs = hash === "#docs";
@@ -134,6 +141,41 @@ export default function App() {
   useEffect(() => {
     if (publicKey && claimView) scan();
   }, [publicKey, claimView, scan]);
+
+  const [addressInput, setAddressInput] = useState("");
+  const [addressLoading, setAddressLoading] = useState(false);
+  const [addressResult, setAddressResult] = useState<AddressResult | null>(null);
+  const [addressError, setAddressError] = useState<string | null>(null);
+
+  const addressClaimable = useMemo(() => {
+    if (!addressResult) return 0;
+    return addressResult.accounts.filter((a) => isUnlocked(a)).reduce((s, a) => s + a.lamports, 0);
+  }, [addressResult]);
+
+  const handleAddressSubmit = useCallback(async () => {
+    const addr = addressInput.trim();
+    if (!addr) return;
+
+    try {
+      new PublicKey(addr);
+    } catch {
+      setAddressError("Not a valid Solana address.");
+      return;
+    }
+
+    setAddressLoading(true);
+    setAddressError(null);
+    setAddressResult(null);
+
+    try {
+      const found = await scanWallet(connection, new PublicKey(addr));
+      setAddressResult({ accounts: found });
+    } catch (error) {
+      setAddressError(friendlyError(error));
+    } finally {
+      setAddressLoading(false);
+    }
+  }, [addressInput, connection]);
 
   const waitingLocked = useMemo(() => accounts.filter((a) => !isUnlocked(a)), [accounts]);
 
@@ -255,14 +297,67 @@ export default function App() {
 
                   {!publicKey && (
                     <Reveal delay={0.18}>
-                      <div className="mt-8 flex flex-col gap-3 lg:max-w-[300px]">
-                        <Button onClick={claim.error ? scan : () => setVisible(true)}>
-                          {claim.error ? "Try again" : "Check my wallet"}
-                        </Button>
-                        {claim.error && (
+                      <div className="mt-8 flex flex-col gap-3 lg:max-w-[340px]">
+                        <Button onClick={() => setVisible(true)}>Check my wallet</Button>
+
+                        <div className="mt-2 flex flex-col gap-2.5">
+                          <span className="faint t-2xs">or paste an address to check</span>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={addressInput}
+                              onChange={(e) => setAddressInput(e.target.value)}
+                              onKeyDown={(e) => e.key === "Enter" && handleAddressSubmit()}
+                              placeholder="Solana wallet address"
+                              className="flex-1 rounded-lg border border-[var(--line)] bg-transparent px-3 py-2.5 t-sm text-[var(--fg)] placeholder:faint focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleAddressSubmit}
+                              disabled={addressLoading || !addressInput.trim()}
+                              className="shrink-0 rounded-lg border border-[var(--line)] px-3 py-2.5 t-sm font-medium text-[var(--fg)] transition-[opacity] duration-150 hover:opacity-80 disabled:opacity-30"
+                            >
+                              {addressLoading ? "…" : "Check"}
+                            </button>
+                          </div>
+                        </div>
+
+                        {addressError && (
                           <span className="muted t-2xs" role="alert">
-                            {claim.error}
+                            {addressError}
                           </span>
+                        )}
+
+                        {addressResult && (
+                          <m.div
+                            initial={reduce ? false : { opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4, ease: EASE }}
+                            className="mt-2 flex flex-col gap-4"
+                          >
+                            <div className="flex flex-col gap-1.5">
+                              <Amount
+                                dollars={
+                                  price !== null ? (addressClaimable / 1e9) * price : null
+                                }
+                                sol={sol(addressClaimable)}
+                                size="amount"
+                              />
+                              <span className="muted t-2xs">
+                                {addressResult.accounts.length} open account{addressResult.accounts.length === 1 ? "" : "s"}
+                              </span>
+                            </div>
+
+                            {addressClaimable > 0 ? (
+                              <Button onClick={() => setVisible(true)}>
+                                Connect wallet to reclaim
+                              </Button>
+                            ) : (
+                              <span className="muted t-xs leading-relaxed">
+                                No claimable rent here. Accounts may still be in the 5 day lock.
+                              </span>
+                            )}
+                          </m.div>
                         )}
                       </div>
                     </Reveal>
