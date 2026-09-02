@@ -14,8 +14,6 @@ const BG = "#0b0b0c";
 const FG = "#f2f2f3";
 const MUTED = "#93949a";
 const FAINT = "#9a9ba1";
-const ACCENT = "#4a94e0";
-const LINE = "rgba(255,255,255,0.08)";
 
 // Register a font that is present on both mac and the windows updater host.
 function ensureFonts(): string {
@@ -41,31 +39,37 @@ function ensureFonts(): string {
   return "sans-serif";
 }
 
-function roundedRect(
-  ctx: any,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number
-): void {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
 function fmt(value: number): string {
   return value.toLocaleString("en-US");
+}
+
+// The app renders the $ symbol muted and slightly smaller than the number,
+// baseline-aligned with a small gap. Mirror that here.
+function drawAmount(
+  ctx: any,
+  usd: number,
+  x: number,
+  baseline: number,
+  font: string
+): void {
+  const value = fmt(usd);
+  const symSize = 92;
+  ctx.font = `600 ${symSize}px ${font}`;
+  const symW = ctx.measureText("$").width;
+  ctx.fillStyle = MUTED;
+  ctx.fillText("$", x, baseline);
+
+  ctx.font = `600 168px ${font}`;
+  ctx.fillStyle = FG;
+  ctx.fillText(value, x + symW + 6, baseline);
 }
 
 export function renderOg(stats: Stats, price: number): Buffer {
   const font = ensureFonts();
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext("2d");
+  ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "left";
 
   const usd = Math.round((stats.lamports / 1e9) * price);
   const sol = stats.lamports / 1e9;
@@ -75,76 +79,51 @@ export function renderOg(stats: Stats, price: number): Buffer {
   ctx.fillRect(0, 0, W, H);
 
   // Subtle top-left glow
-  const glow = ctx.createRadialGradient(W * 0.24, -80, 40, W * 0.24, -80, 560);
-  glow.addColorStop(0, "rgba(74,148,224,0.18)");
+  const glow = ctx.createRadialGradient(W * 0.22, -80, 40, W * 0.22, -80, 620);
+  glow.addColorStop(0, "rgba(74,148,224,0.16)");
   glow.addColorStop(1, "rgba(74,148,224,0)");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, W, H);
 
-  // Soft grid of faint dots for texture
-  ctx.fillStyle = "rgba(255,255,255,0.035)";
-  for (let x = 116; x < W; x += 76) {
-    for (let y = 60; y < H; y += 76) {
-      ctx.beginPath();
-      ctx.arc(x, y, 1.4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  // Eyebrow
+  // Eyebrow (10.5px in app -> ~34px on card)
   ctx.fillStyle = FAINT;
-  ctx.font = `500 19px ${font}`;
-  ctx.letterSpacing = "5px";
-  ctx.textBaseline = "alphabetic";
-  ctx.fillText("UNCLAIMED ON SOLANA", 72, 96);
+  ctx.font = `500 32px ${font}`;
+  ctx.letterSpacing = "9px";
+  ctx.fillText("UNCLAIMED ON SOLANA", 80, 118);
   ctx.letterSpacing = "0px";
 
-  // Hero USD figure
-  const hero = `$${fmt(usd)}`;
-  ctx.fillStyle = FG;
-  ctx.font = `600 150px ${font}`;
-  ctx.textBaseline = "alphabetic";
-  ctx.fillText(hero, 72, 244);
+  // Hero amount
+  drawAmount(ctx, usd, 80, 308, font);
 
-  // Separator line + secondary
-  ctx.strokeStyle = LINE;
-  ctx.beginPath();
-  ctx.moveTo(72, 300);
-  ctx.lineTo(628, 300);
-  ctx.stroke();
-
+  // SOL line (muted, small)
   ctx.fillStyle = MUTED;
   ctx.font = `500 30px ${font}`;
-  ctx.fillText(`${sol.toFixed(2)} SOL across ${fmt(stats.accounts)} accounts`, 72, 352);
+  ctx.fillText(`${sol.toFixed(0)} SOL`, 82, 372);
 
   // Descriptor
   ctx.fillStyle = FAINT;
-  ctx.font = `400 22px ${font}`;
+  ctx.font = `400 26px ${font}`;
   ctx.fillText(
     "Every USDC bridge transfer rents a temporary account on Solana.",
-    72,
-    432
+    80,
+    470
   );
   ctx.fillText(
     "The transfer completes, the rent stays locked until it is reclaimed.",
-    72,
-    464
+    80,
+    508
   );
 
-  // Accent pillar (brand mark), aligned to the wordmark row
-  ctx.fillStyle = ACCENT;
-  roundedRect(ctx, 72, H - 104, 14, 48, 7);
-  ctx.fill();
-
-  // Wordmark
+  // Footer: wordmark + accounts line, pulled to the bottom edge
+  const footY = H - 64;
   ctx.fillStyle = FG;
-  ctx.font = `600 28px ${font}`;
-  ctx.fillText("Reclaim", 106, H - 78);
+  ctx.font = `600 30px ${font}`;
+  ctx.fillText("Reclaim", 80, footY);
 
-  // Secondary line below the wordmark
   ctx.fillStyle = MUTED;
-  ctx.font = `400 21px ${font}`;
-  ctx.fillText(`${fmt(stats.accounts)} accounts · ${fmt(stats.wallets)} wallets`, 106, H - 48);
+  ctx.font = `400 24px ${font}`;
+  const accounts = `${fmt(stats.accounts)} accounts · ${fmt(stats.wallets)} wallets`;
+  ctx.fillText(accounts, 80, footY + 34);
 
   return canvas.toBuffer("image/png");
 }
