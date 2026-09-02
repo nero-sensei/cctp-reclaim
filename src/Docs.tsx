@@ -216,7 +216,7 @@ fee payer       must keep 890,880 lamports rent exempt`}</Code>
         <p className="muted t-xs leading-relaxed">
           An independent open-source tool, MIT licensed. Not affiliated with, endorsed by, or
           operated by Circle or Solana. USDC and CCTP are trademarks of Circle, used here only to
-          describe what this tool works with. Attestations come from Circle’s public API under
+          describe what this tool works with. Attestations come from Circle&apos;s public API under
           their developer terms. Use at your own risk.
         </p>
       </Section>

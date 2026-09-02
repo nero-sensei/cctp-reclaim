@@ -17,7 +17,7 @@ import { friendlyError } from "./errors";
 
 export const MAX_BATCHES_PER_CLAIM = 25;
 
-export type Status = "idle" | "scanning" | "ready" | "signing" | "claiming" | "done";
+type Status = "idle" | "scanning" | "ready" | "signing" | "claiming" | "done";
 
 interface State {
   status: Status;
@@ -121,7 +121,10 @@ export function useClaim() {
         batches,
         pending,
         skipped,
-        topUp: topUpNeeded(balance, batches.length),
+        topUp: topUpNeeded(
+          balance,
+          batches.map((b) => b.accounts.length)
+        ),
       });
     } catch (error) {
       if (!current()) return;

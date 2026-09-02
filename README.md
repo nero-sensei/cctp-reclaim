@@ -7,9 +7,9 @@ and you pay rent for it, about 0.003 SOL. The transfer completes, nobody closes 
 your rent stays locked in it.
 
 ```
-893,200 accounts still open
-  2,890 SOL locked inside them
-257,168 wallets are owed some of it
+896,145 accounts still open
+  2,902 SOL locked inside them
+257,385 wallets are owed some of it
 ```
 
 No fees, no custody, no backend, no tracking. Your wallet signs; the rent goes back to it.
@@ -37,7 +37,7 @@ pnpm dev
 A provider endpoint is required — Solana's public RPC rejects `getProgramAccounts` from a browser.
 
 ```bash
-pnpm test                                       # 17 tests
+pnpm test           # 18 tests
 pnpm build                                      # static output in dist/
 RPC_URL=<url> pnpm scan <wallet> --simulate     # simulate a claim, no private key
 RPC_URL=<url> pnpm stats                        # regenerate public/stats.json

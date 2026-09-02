@@ -4,9 +4,9 @@ import { m, useReducedMotion } from "motion/react";
 
 export const EASE = [0.16, 1, 0.3, 1] as const;
 export const COLUMNS = "lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start lg:gap-20";
-export const SPRING = { type: "spring", duration: 0.3, bounce: 0 } as const;
+const SPRING = { type: "spring", duration: 0.3, bounce: 0 } as const;
 
-export function AnimatedNumber({ value, decimals = 4 }: { value: number; decimals?: number }) {
+function AnimatedNumber({ value, decimals = 4 }: { value: number; decimals?: number }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -281,7 +281,7 @@ export function Button({
   );
 }
 
-export function LiveDot() {
+function LiveDot() {
   const reduce = useReducedMotion();
 
   return (

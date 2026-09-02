@@ -6,6 +6,9 @@ import {
   MIN_TOP_UP,
   PROGRAMS,
   RECLAIM_WINDOW_SECS,
+  CU_MARGIN,
+  CU_PER_ACCOUNT,
+  MAX_PRIORITY_FEE,
   RENT_EXEMPT_MINIMUM,
   RENT_PAYER_OFFSET,
   SIGNATURE_FEE,
@@ -87,10 +90,17 @@ export function totalLamports(accounts: EventAccount[]): number {
   return accounts.reduce((sum, a) => sum + a.lamports, 0);
 }
 
-export function requiredBalance(batches: number): number {
-  return RENT_EXEMPT_MINIMUM + SIGNATURE_FEE * Math.max(1, batches);
+export function requiredBalance(accountsPerBatch: number[]): number {
+  const count = Math.max(1, accountsPerBatch.length);
+  const priority = accountsPerBatch.reduce(
+    (sum, accounts) =>
+      sum + Math.ceil(((accounts * CU_PER_ACCOUNT + CU_MARGIN) * MAX_PRIORITY_FEE) / 1_000_000),
+    0
+  );
+
+  return RENT_EXEMPT_MINIMUM + SIGNATURE_FEE * count + priority;
 }
 
-export function topUpNeeded(balance: number, batches: number): number {
-  return balance >= requiredBalance(batches) ? 0 : MIN_TOP_UP;
+export function topUpNeeded(balance: number, accountsPerBatch: number[]): number {
+  return balance >= requiredBalance(accountsPerBatch) ? 0 : MIN_TOP_UP;
 }

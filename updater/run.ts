@@ -1,16 +1,15 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { Connection } from "@solana/web3.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { countStats, Stats } from "../src/cctp/count";
 
 const RPC_URL = process.env.RPC_URL ?? "https://api.mainnet-beta.solana.com";
-const STATS_URL = process.env.STATS_URL ?? "";
-const STATS_TOKEN = process.env.STATS_TOKEN ?? "";
 const HISTORY_FILE = process.env.HISTORY_FILE ?? "history.json";
 const INTERVAL_HOURS = Number(process.env.INTERVAL_HOURS ?? 24);
 const PAUSE_MS = Number(process.env.STATS_PAUSE_MS ?? 250);
 const HISTORY_DAYS = Number(process.env.HISTORY_DAYS ?? 90);
+const RUN_LIMIT_MS = Number(process.env.RUN_LIMIT_MINUTES ?? 90) * 60_000;
 const REPO_DIR = process.env.REPO_DIR ?? "";
 const run = promisify(execFile);
 
@@ -22,28 +21,6 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const sol = (lamports: number) => (lamports / 1e9).toFixed(2);
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
-
-async function publish(stats: Stats): Promise<void> {
-  if (!STATS_URL || !STATS_TOKEN) {
-    log("no STATS_URL/STATS_TOKEN, skipping publish");
-    return;
-  }
-
-  const response = await fetch(STATS_URL, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${STATS_TOKEN}`,
-    },
-    body: JSON.stringify(stats),
-  });
-
-  const body = (await response.text()).trim();
-
-  if (!response.ok) throw new Error(`publish failed ${response.status}: ${body}`);
-
-  log(`published to ${new URL(STATS_URL).host}`);
-}
 
 
 interface Entry {
@@ -57,24 +34,34 @@ interface Store {
   record(stats: Stats): Promise<number>;
 }
 
+function read(): Entry[] {
+  if (!existsSync(HISTORY_FILE)) return [];
+
+  try {
+    const parsed = JSON.parse(readFileSync(HISTORY_FILE, "utf8"));
+    return Array.isArray(parsed) ? (parsed as Entry[]) : [];
+  } catch {
+    log("history file unreadable, starting a new one");
+    return [];
+  }
+}
+
 const fileStore: Store = {
   async open() {
     log(`history in ${HISTORY_FILE}`);
   },
   async latest() {
-    if (!existsSync(HISTORY_FILE)) return null;
-    const entries = JSON.parse(readFileSync(HISTORY_FILE, "utf8")) as Entry[];
+    const entries = read();
     return entries.length > 0 ? entries[entries.length - 1].stats : null;
   },
   async record(stats) {
     const now = Date.now();
-    const existing: Entry[] = existsSync(HISTORY_FILE)
-      ? (JSON.parse(readFileSync(HISTORY_FILE, "utf8")) as Entry[])
-      : [];
-    const kept = [...existing, { at: now, stats }].filter(
+    const kept = [...read(), { at: now, stats }].filter(
       (e) => e.at > now - HISTORY_DAYS * 86400_000
     );
-    writeFileSync(HISTORY_FILE, JSON.stringify(kept));
+
+    writeFileSync(`${HISTORY_FILE}.tmp`, JSON.stringify(kept));
+    renameSync(`${HISTORY_FILE}.tmp`, HISTORY_FILE);
     return kept.length;
   },
 };
@@ -99,7 +86,14 @@ async function pushToRepo(stats: Stats): Promise<void> {
 
   await git("add", "public/stats.json");
   await git("commit", "--quiet", "-m", `chore: stats ${stats.generatedAt.slice(0, 10)}`);
-  await git("push", "--quiet", "origin", "HEAD:main");
+  try {
+    await git("push", "--quiet", "origin", "HEAD:main");
+  } catch {
+    log("push rejected, rebasing onto origin/main and retrying");
+    await git("fetch", "--quiet", "origin", "main");
+    await git("rebase", "--quiet", "origin/main");
+    await git("push", "--quiet", "origin", "HEAD:main");
+  }
 
   log("pushed stats.json, cloudflare will rebuild");
 }
@@ -126,12 +120,6 @@ async function once(): Promise<void> {
   );
 
   try {
-    await publish(stats);
-  } catch (error) {
-    log(`publish failed: ${message(error)}`);
-  }
-
-  try {
     await pushToRepo(stats);
   } catch (error) {
     log(`git push failed: ${message(error)}`);
@@ -151,7 +139,12 @@ async function main(): Promise<void> {
 
   for (;;) {
     try {
-      await once();
+      await Promise.race([
+        once(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("run exceeded time limit")), RUN_LIMIT_MS)
+        ),
+      ]);
     } catch (error) {
       log(`run failed: ${message(error)}`);
     }

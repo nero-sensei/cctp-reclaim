@@ -9,7 +9,7 @@
   --muted: #6b6c71;
   --faint: #707177;
   --line: rgba(11, 11, 12, 0.09);
-  --accent: #2775ca;
+  --accent: #1f65ab;
   --success: #0f9960;
 }
 
@@ -298,4 +298,11 @@ body {
 .scroller::-webkit-scrollbar-thumb {
   background: var(--line);
   border-radius: 3px;
+}
+
+.wallet-adapter-button:focus-visible,
+.wallet-adapter-button-trigger:focus-visible,
+.wallet-adapter-dropdown-list-item:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
 }

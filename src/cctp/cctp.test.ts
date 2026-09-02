@@ -95,15 +95,15 @@ test("encodes v2 instruction data to exact bytes", () => {
 });
 
 test("requires rent exemption plus one fee per batch", () => {
-  assert.equal(requiredBalance(1), RENT_EXEMPT_MINIMUM + SIGNATURE_FEE);
-  assert.equal(requiredBalance(4), RENT_EXEMPT_MINIMUM + SIGNATURE_FEE * 4);
-  assert.equal(requiredBalance(0), RENT_EXEMPT_MINIMUM + SIGNATURE_FEE);
+  assert.ok(requiredBalance([1]) > RENT_EXEMPT_MINIMUM + SIGNATURE_FEE);
+  assert.ok(requiredBalance([1, 1, 1, 1]) > requiredBalance([1]));
+  assert.equal(requiredBalance([]), RENT_EXEMPT_MINIMUM + SIGNATURE_FEE);
 });
 
 test("asks for a round top up only when the balance is short", () => {
-  assert.equal(topUpNeeded(RENT_EXEMPT_MINIMUM + SIGNATURE_FEE, 1), 0);
-  assert.equal(topUpNeeded(0, 1), MIN_TOP_UP);
-  assert.equal(topUpNeeded(RENT_EXEMPT_MINIMUM, 1), MIN_TOP_UP);
+  assert.equal(topUpNeeded(requiredBalance([1]), [1]), 0);
+  assert.equal(topUpNeeded(0, [1]), MIN_TOP_UP);
+  assert.equal(topUpNeeded(RENT_EXEMPT_MINIMUM, [1]), MIN_TOP_UP);
 });
 
 test("v1 is always unlocked, v2 unlocks exactly on the boundary", () => {

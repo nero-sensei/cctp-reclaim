@@ -69,7 +69,7 @@ async function check(connection: Connection, wallet: string): Promise<boolean> {
   const batches = planBatches(claimables, owner);
   const balance = await connection.getBalance(owner);
 
-  if (balance < requiredBalance(batches.length)) {
+  if (balance < requiredBalance(batches.map((b) => b.accounts.length))) {
     console.log(`${label} · underfunded, balance ${sol(balance)} SOL`);
     return true;
   }
