@@ -43,14 +43,21 @@ async function medianRecent(connection: Connection): Promise<number> {
 }
 
 export async function priorityFee(connection: Connection, endpoint: string): Promise<number> {
-  try {
+  const resolve = async (): Promise<[number, string]> => {
     if (endpoint.includes("helius")) {
       const estimate = await heliusEstimate(endpoint);
-      if (estimate !== null) return clamp(estimate);
+      if (estimate !== null) return [clamp(estimate), "helius"];
     }
 
-    return clamp(await medianRecent(connection));
-  } catch {
+    return [clamp(await medianRecent(connection)), "recent-median"];
+  };
+
+  try {
+    const [fee, source] = await resolve();
+    console.info(`priority fee ${fee} microLamports/CU via ${source}`);
+    return fee;
+  } catch (error) {
+    console.info(`priority fee ${MIN_PRIORITY_FEE} microLamports/CU via floor`, error);
     return MIN_PRIORITY_FEE;
   }
 }

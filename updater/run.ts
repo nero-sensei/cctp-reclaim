@@ -2,13 +2,11 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { Connection } from "@solana/web3.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { createClient } from "redis";
 import { countStats, Stats } from "../src/cctp/count";
 
 const RPC_URL = process.env.RPC_URL ?? "https://api.mainnet-beta.solana.com";
 const STATS_URL = process.env.STATS_URL ?? "";
 const STATS_TOKEN = process.env.STATS_TOKEN ?? "";
-const REDIS_URL = process.env.REDIS_URL ?? "";
 const HISTORY_FILE = process.env.HISTORY_FILE ?? "history.json";
 const INTERVAL_HOURS = Number(process.env.INTERVAL_HOURS ?? 24);
 const PAUSE_MS = Number(process.env.STATS_PAUSE_MS ?? 250);
@@ -16,8 +14,6 @@ const HISTORY_DAYS = Number(process.env.HISTORY_DAYS ?? 90);
 const REPO_DIR = process.env.REPO_DIR ?? "";
 const run = promisify(execFile);
 
-const HISTORY_KEY = "cctp:stats:history";
-const LATEST_KEY = "cctp:stats:latest";
 
 const stamp = () => new Date().toISOString().replace("T", " ").slice(0, 19);
 const log = (line: string) => console.log(`${stamp()}  ${line}`);
@@ -83,38 +79,7 @@ const fileStore: Store = {
   },
 };
 
-function redisStore(): Store {
-  const client = createClient({ url: REDIS_URL });
-  client.on("error", (error) => log(`redis error: ${error.message}`));
-
-  return {
-    async open() {
-      for (let attempt = 1; !client.isOpen; attempt++) {
-        try {
-          await client.connect();
-        } catch (error) {
-          log(`redis connect failed (attempt ${attempt}): ${message(error)}`);
-          await sleep(Math.min(30_000, 1000 * attempt));
-        }
-      }
-      log(`history in redis ${new URL(REDIS_URL).host}`);
-    },
-    async latest() {
-      const previous = await client.get(LATEST_KEY);
-      return previous ? (JSON.parse(previous) as Stats) : null;
-    },
-    async record(stats) {
-      const now = Date.now();
-      const encoded = JSON.stringify(stats);
-      await client.set(LATEST_KEY, encoded);
-      await client.zAdd(HISTORY_KEY, { score: now, value: encoded });
-      await client.zRemRangeByScore(HISTORY_KEY, 0, now - HISTORY_DAYS * 86400_000);
-      return client.zCard(HISTORY_KEY);
-    },
-  };
-}
-
-const store: Store = REDIS_URL ? redisStore() : fileStore;
+const store: Store = fileStore;
 
 async function pushToRepo(stats: Stats): Promise<void> {
   if (!REPO_DIR) return;
