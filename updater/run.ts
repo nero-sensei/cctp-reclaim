@@ -3,7 +3,6 @@ import { Connection } from "@solana/web3.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { countStats, Stats } from "../src/cctp/count";
-import { generateOg } from "../src/cli/og";
 
 const RPC_URL = process.env.RPC_URL ?? "https://api.mainnet-beta.solana.com";
 const HISTORY_FILE = process.env.HISTORY_FILE ?? "history.json";
@@ -79,20 +78,13 @@ async function pushToRepo(stats: Stats): Promise<void> {
 
   writeFileSync(`${REPO_DIR}/public/stats.json`, JSON.stringify(stats, null, 2) + "\n");
 
-  // Regenerate the social-card image so shared links always show fresh figures.
-  try {
-    await generateOg(stats, `${REPO_DIR}/public/og.png`);
-  } catch (error) {
-    log(`og generation failed: ${message(error)}`);
-  }
-
-  const { stdout } = await git("status", "--porcelain", "public/stats.json", "public/og.png");
+  const { stdout } = await git("status", "--porcelain", "public/stats.json");
   if (stdout.trim() === "") {
     log("stats unchanged, nothing to push");
     return;
   }
 
-  await git("add", "public/stats.json", "public/og.png");
+  await git("add", "public/stats.json");
   await git("commit", "--quiet", "-m", `chore: stats ${stats.generatedAt.slice(0, 10)}`);
   try {
     await git("push", "--quiet", "origin", "HEAD:main");
@@ -103,7 +95,7 @@ async function pushToRepo(stats: Stats): Promise<void> {
     await git("push", "--quiet", "origin", "HEAD:main");
   }
 
-  log("pushed stats.json + og.png, cloudflare will rebuild");
+  log("pushed stats.json, cloudflare will rebuild");
 }
 
 async function once(): Promise<void> {
