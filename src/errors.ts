@@ -6,6 +6,19 @@ const PROGRAM_ERRORS: Record<number, string> = {
   6033: "This account is still inside its 5 day lock.",
 };
 
+const describe = (error: unknown): string => {
+  const parts: string[] = [];
+  let current = error;
+
+  for (let depth = 0; current != null && depth < 5; depth++) {
+    if (current instanceof Error) parts.push(current.message);
+    parts.push(typeof current === "object" ? stringify(current) : String(current));
+    current = (current as { cause?: unknown }).cause;
+  }
+
+  return parts.join(" ");
+};
+
 export function friendlyError(error: unknown): string {
   const message =
     error instanceof Error
@@ -13,7 +26,8 @@ export function friendlyError(error: unknown): string {
       : typeof error === "object" && error !== null
         ? stringify(error)
         : String(error);
-  const lower = message.toLowerCase();
+  const text = describe(error);
+  const lower = text.toLowerCase();
 
   if (lower.includes("user rejected") || lower.includes("rejected the request")) {
     return "Signature cancelled.";
@@ -25,7 +39,8 @@ export function friendlyError(error: unknown): string {
     lower.includes("blockheight") ||
     lower.includes("expired") ||
     lower.includes("timed out") ||
-    lower.includes("blockhash not found")
+    lower.includes("blockhash not found") ||
+    lower.includes("blockhashnotfound")
   ) {
     return "The network was busy and the transaction expired. Try again.";
   }
@@ -42,8 +57,8 @@ export function friendlyError(error: unknown): string {
     return "Already claimed. Rescan to refresh.";
   }
 
-  const hex = message.match(/custom program error: 0x([0-9a-f]+)/i);
-  const decimal = message.match(/"Custom"\s*:\s*(\d+)/);
+  const hex = text.match(/custom program error: 0x([0-9a-f]+)/i);
+  const decimal = text.match(/"Custom"\s*:\s*(\d+)/);
   const code = hex ? parseInt(hex[1], 16) : decimal ? Number(decimal[1]) : null;
   if (code !== null && PROGRAM_ERRORS[code]) return PROGRAM_ERRORS[code];
 

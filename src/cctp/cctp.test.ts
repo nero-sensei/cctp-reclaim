@@ -23,6 +23,7 @@ import {
   SIGNATURE_FEE,
 } from "./constants";
 import { buildReclaimInstruction, buildTransaction, Claimable, planBatches } from "./tx";
+import { friendlyError } from "../errors";
 
 const payer = new PublicKey("9eicTMCZUADpkyXdPjjdyqhAukyzcpxwqHwsKxS38QMf");
 const RENT = 650_240;
@@ -271,6 +272,20 @@ test("never mixes v1 and v2 reclaims in one transaction", () => {
       assert.equal(new Set(batch.accounts.map((a) => a.version)).size, 1);
     }
   }
+});
+
+test("reads coded production errors from their context and cause", () => {
+  const http = Object.assign(new Error("Solana error #8100002; Decode this error by running ..."), {
+    context: { __code: 8100002, statusCode: 403 },
+  });
+  const wrapped = new Error("Wallet send failed.", { cause: http });
+
+  assert.equal(friendlyError(http), "The RPC endpoint refused this request.");
+  assert.equal(friendlyError(wrapped), "The RPC endpoint refused this request.");
+  assert.equal(
+    friendlyError({ InstructionError: [0n, { Custom: 6033n }] }),
+    "This account is still inside its 5 day lock."
+  );
 });
 
 test("orders v1 reclaims ahead of v2", () => {
