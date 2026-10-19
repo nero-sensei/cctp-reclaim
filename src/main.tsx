@@ -2,11 +2,10 @@ import "./polyfill";
 import { StrictMode, useMemo } from "react";
 import { createRoot } from "react-dom/client";
 import { LazyMotion, MotionConfig, domAnimation } from "motion/react";
-import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
-import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
+import { ConnectionProvider, WalletModalProvider, WalletProvider } from "@solana/wallet-adapter";
 import App from "./App";
 import { RPC_URL } from "./config";
-import "@solana/wallet-adapter-react-ui/styles.css";
+import "@solana/wallet-adapter/styles.css";
 import "./index.css";
 
 function Missing() {
@@ -30,7 +29,7 @@ function Root() {
     <LazyMotion features={domAnimation} strict>
       <MotionConfig reducedMotion="user">
         <ConnectionProvider endpoint={endpoint}>
-          <WalletProvider wallets={[]} autoConnect>
+          <WalletProvider chain="solana:mainnet">
             <WalletModalProvider>
               <App />
             </WalletModalProvider>
@@ -39,6 +38,24 @@ function Root() {
       </MotionConfig>
     </LazyMotion>
   );
+}
+
+if (/android/i.test(navigator.userAgent)) {
+  import("@solana-mobile/wallet-standard-mobile").then(
+    ({
+      registerMwa,
+      createDefaultAuthorizationCache,
+      createDefaultChainSelector,
+      createDefaultWalletNotFoundHandler,
+    }) =>
+      registerMwa({
+        appIdentity: { name: "Reclaim", uri: window.location.origin, icon: "favicon.png" },
+        authorizationCache: createDefaultAuthorizationCache(),
+        chains: ["solana:mainnet"],
+        chainSelector: createDefaultChainSelector(),
+        onWalletNotFound: createDefaultWalletNotFoundHandler(),
+      })
+  ).catch(console.error);
 }
 
 createRoot(document.getElementById("root")!).render(

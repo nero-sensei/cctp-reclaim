@@ -3,8 +3,11 @@
 Bridging USDC to Solana leaves your SOL behind. This gets it back.
 
 Not the USDC — that arrived fine. To carry the transfer, Circle's CCTP opens an account on Solana
-and you pay rent for it, about 0.003 SOL. The transfer completes, nobody closes the account, and
-your rent stays locked in it.
+and you pay rent for it, about 0.003 SOL (less on newer transfers, since Solana cut rent in 2026). The
+transfer completes, nobody closes the account, and your rent stays locked in it.
+
+CCTP V1 rent has a deadline. Circle pauses V1 on 1 December 2026, and a paused V1 program refuses
+`reclaim_event_account`, so V1 rent left after that stays locked.
 
 ```
 896,145 accounts still open
@@ -37,9 +40,10 @@ pnpm dev
 A provider endpoint is required — Solana's public RPC rejects `getProgramAccounts` from a browser.
 
 ```bash
-pnpm test           # 18 tests
+pnpm test                                       # 22 tests
 pnpm build                                      # static output in dist/
 RPC_URL=<url> pnpm scan <wallet> --simulate     # simulate a claim, no private key
+RPC_URL=<url> pnpm scan <wallet> --simulate --v1  # same, as v1 transactions
 RPC_URL=<url> pnpm stats                        # regenerate public/stats.json
 ```
 
@@ -54,8 +58,9 @@ MessageSent   v1  8 disc | 32 rent_payer | 4 len | message
 ```
 
 `reclaim_event_account` verifies a Circle attestation on-chain and refunds the payer. V1 claims any
-time; V2 locks for 432,000s (error 6033 before that, measured on mainnet). V1 packs ~5 reclaims per
-transaction, V2 one. Global totals are precomputed into `stats.json` because counting every account
+time until Circle pauses it; V2 locks for 432,000s (error 6033 before that, measured on mainnet).
+Wallets that sign v1 transactions (4096 bytes, SIMD-0296/0385) get up to 9 V1 or ~6 V2 reclaims
+per transaction, capped by 1.4M CU. Everyone else gets v0: V1 packs ~5, V2 one. Global totals are precomputed into `stats.json` because counting every account
 means downloading 154 MB, then adjusted live over a WebSocket.
 
 ## Not affiliated

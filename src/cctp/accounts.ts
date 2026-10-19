@@ -6,13 +6,12 @@ import {
   MIN_TOP_UP,
   PROGRAMS,
   RECLAIM_WINDOW_SECS,
-  CU_MARGIN,
-  CU_PER_ACCOUNT,
   MAX_PRIORITY_FEE,
-  RENT_EXEMPT_MINIMUM,
+  PAUSED_OFFSET,
   RENT_PAYER_OFFSET,
   SIGNATURE_FEE,
 } from "./constants";
+import { priorityLamports } from "./fees";
 
 export interface EventAccount {
   address: PublicKey;
@@ -78,7 +77,7 @@ export async function scanWallet(
       });
 
       return accounts.map(({ pubkey, account }) =>
-        decodeEventAccount(version, pubkey, account.lamports, account.data)
+        decodeEventAccount(version, pubkey, Number(account.lamports), Buffer.from(account.data))
       );
     })
   );
@@ -86,21 +85,30 @@ export async function scanWallet(
   return found.flat();
 }
 
+export async function pausedVersions(connection: Connection): Promise<CctpVersion[]> {
+  const versions: CctpVersion[] = ["v1", "v2"];
+  const states = await connection.getMultipleAccountsInfo(versions.map((v) => PROGRAMS[v].state));
+  return versions.filter((_, i) => states[i]?.data[PAUSED_OFFSET] === 1);
+}
+
 export function totalLamports(accounts: EventAccount[]): number {
   return accounts.reduce((sum, a) => sum + a.lamports, 0);
 }
 
-export function requiredBalance(accountsPerBatch: number[]): number {
+export function requiredBalance(accountsPerBatch: number[], rentExempt: number): number {
   const count = Math.max(1, accountsPerBatch.length);
   const priority = accountsPerBatch.reduce(
-    (sum, accounts) =>
-      sum + Math.ceil(((accounts * CU_PER_ACCOUNT + CU_MARGIN) * MAX_PRIORITY_FEE) / 1_000_000),
+    (sum, accounts) => sum + priorityLamports(accounts, MAX_PRIORITY_FEE),
     0
   );
 
-  return RENT_EXEMPT_MINIMUM + SIGNATURE_FEE * count + priority;
+  return rentExempt + SIGNATURE_FEE * count + priority;
 }
 
-export function topUpNeeded(balance: number, accountsPerBatch: number[]): number {
-  return balance >= requiredBalance(accountsPerBatch) ? 0 : MIN_TOP_UP;
+export function topUpNeeded(
+  balance: number,
+  accountsPerBatch: number[],
+  rentExempt: number
+): number {
+  return balance >= requiredBalance(accountsPerBatch, rentExempt) ? 0 : MIN_TOP_UP;
 }

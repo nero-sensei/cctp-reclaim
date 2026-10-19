@@ -11,7 +11,7 @@ const AUTOMATIC = [
   },
   {
     title: "Solana charged you rent",
-    body: "To carry the transfer message it opened a temporary account, and every Solana account has to be paid for. About 0.003 SOL of your own money, held as rent.",
+    body: "To carry the transfer message it opened a temporary account, and every Solana account has to be paid for. Around 0.003 SOL of your own money, held as rent. Less on newer transfers, since Solana cut rent in 2026.",
   },
   {
     title: "Nobody closed the account",
@@ -70,8 +70,9 @@ function Diagram() {
 const VERSIONS = [
   {
     name: "CCTP V1",
-    rule: "Claim any time",
-    detail: "No waiting period. The program checks the attestation and closes the account.",
+    rule: "Claim before 1 December",
+    detail:
+      "No waiting period. The program checks the attestation and closes the account. Stops working when Circle pauses V1 on 1 December 2026.",
   },
   {
     name: "CCTP V2",
@@ -97,8 +98,9 @@ function Retirement() {
     <div className="flex flex-col gap-4">
       <p className="muted t-xs leading-relaxed">
         Retirement starts on 31 October 2026 and completes on 1 December 2026, {completes} days
-        from now. Circle states access to funds is not lost during the phase out. What ends is new
-        activity on V1, so the pile of unclaimed rent stops growing.
+        from now, when Circle pauses the V1 contracts. Circle says pending USDC transfers are safe.
+        Rent is different: the V1 program refuses to close accounts while paused, so V1 rent still
+        locked after 1 December stays locked. Claim it before then.
       </p>
       <div className="flex flex-col gap-2">
         <span className="faint t-2xs">Read it from Circle</span>
@@ -161,7 +163,7 @@ export default function Docs() {
         </p>
       </Section>
 
-      <Section title="V1 is being retired">
+      <Section title="V1 claims end 1 December">
         <Retirement />
       </Section>
 
@@ -193,10 +195,11 @@ attest    v1    GET /v1/attestations/{keccak256(message)}
           v2    GET /v2/messages/5?transactionHash={sig}
           rate  35 req/s, throttled to ~8 here
 
-limits          1232 bytes per tx
-                v1 packs ~5, v2 packs 1 (376 byte message)
+limits    tx v0 1232 bytes: v1 ~5, v2 1 (376 byte message)
+          tx v1 4096 bytes: v1 9, v2 ~6, 1.4M CU cap, if the wallet signs tx v1
 window          432,000s, error 6033 before that
-fee payer       must keep 890,880 lamports rent exempt`}</Code>
+paused          error 6001, v1 pauses on 1 December 2026
+fee payer       must stay rent exempt, getMinimumBalanceForRentExemption(0)`}</Code>
         <p className="muted t-xs leading-relaxed">
           Anyone can reproduce the numbers on this page with one getProgramAccounts call. The source
           is on{" "}

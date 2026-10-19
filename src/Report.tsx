@@ -1,8 +1,14 @@
 import { useEffect, useState } from "react";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { useConnection, useWallet, useWalletModal } from "@solana/wallet-adapter";
 import { PublicKey } from "@solana/web3.js";
-import { EventAccount, isUnlocked, scanWallet, totalLamports } from "./cctp";
+import {
+  CctpVersion,
+  EventAccount,
+  isUnlocked,
+  pausedVersions,
+  scanWallet,
+  totalLamports,
+} from "./cctp";
 import { friendlyError } from "./errors";
 import { sol } from "./format";
 import GlobalStats from "./Stats";
@@ -17,6 +23,7 @@ export default function Report({ address }: { address: string }) {
   const price = usePrice();
   const stats = useLiveStats();
   const [accounts, setAccounts] = useState<EventAccount[] | null>(null);
+  const [paused, setPaused] = useState<CctpVersion[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
 
@@ -27,8 +34,12 @@ export default function Report({ address }: { address: string }) {
 
     try {
       const owner = new PublicKey(address);
-      scanWallet(connection, owner)
-        .then((found) => active && setAccounts(found))
+      Promise.all([scanWallet(connection, owner), pausedVersions(connection)])
+        .then(([found, halted]) => {
+          if (!active) return;
+          setPaused(halted);
+          setAccounts(found);
+        })
         .catch((e) => active && setError(friendlyError(e)));
     } catch {
       setError("That is not a valid Solana address.");
@@ -39,8 +50,13 @@ export default function Report({ address }: { address: string }) {
     };
   }, [address, attempt, connection]);
 
-  const total = accounts ? totalLamports(accounts) : 0;
-  const ready = accounts ? accounts.filter((a) => isUnlocked(a)) : [];
+  const total = accounts
+    ? totalLamports(accounts.filter((a) => !paused.includes(a.version)))
+    : 0;
+  const ready = accounts
+    ? accounts.filter((a) => isUnlocked(a) && !paused.includes(a.version))
+    : [];
+  const halted = accounts ? accounts.filter((a) => paused.includes(a.version)).length : 0;
   const dollars = price === null ? null : (total / 1e9) * price;
   const isOwner = publicKey?.toBase58() === address;
 
@@ -75,8 +91,9 @@ export default function Report({ address }: { address: string }) {
                 <Row label="Claimable now" value={ready.length.toLocaleString()} />
                 <Row
                   label="Waiting 5 days"
-                  value={(accounts.length - ready.length).toLocaleString()}
+                  value={(accounts.length - ready.length - halted).toLocaleString()}
                 />
+                {halted > 0 && <Row label="Paused by Circle" value={halted.toLocaleString()} />}
                 <Row label="Wallet" value={`${address.slice(0, 4)}…${address.slice(-4)}`} />
               </div>
             </Reveal>

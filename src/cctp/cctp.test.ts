@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Keypair, PublicKey } from "@solana/web3.js";
+import { type Blockhash, PublicKey } from "@solana/web3.js";
 import {
   decodeEventAccount,
   EventAccount,
@@ -11,17 +11,35 @@ import {
 } from "./accounts";
 import { Attestation } from "./attest";
 import {
+  CU_MARGIN,
+  CU_PER_ACCOUNT,
+  MAX_CU_PER_TX,
   MAX_TX_BYTES,
+  MAX_V1_TX_BYTES,
   MESSAGE_SENT_DISCRIMINATOR,
   MIN_TOP_UP,
   RECLAIM_DISCRIMINATOR,
   RECLAIM_WINDOW_SECS,
-  RENT_EXEMPT_MINIMUM,
   SIGNATURE_FEE,
 } from "./constants";
 import { buildReclaimInstruction, buildTransaction, Claimable, planBatches } from "./tx";
+import { friendlyError } from "../errors";
 
 const payer = new PublicKey("9eicTMCZUADpkyXdPjjdyqhAukyzcpxwqHwsKxS38QMf");
+const RENT = 650_240;
+const BLOCKHASH = PublicKey.default.toBase58() as string as Blockhash;
+
+let seed = 0;
+const address = (): PublicKey => {
+  seed += 1;
+  const bytes = new Uint8Array(32);
+  bytes[0] = seed & 0xff;
+  bytes[1] = seed >> 8;
+  bytes[31] = 1;
+  return new PublicKey(bytes);
+};
+
+const dataOf = (item: Claimable): Buffer => Buffer.from(buildReclaimInstruction(item).data);
 
 const rawAccount = (version: "v1" | "v2", message: Buffer, createdAt = 0): Buffer => {
   const prefix = version === "v1" ? Buffer.alloc(0) : Buffer.alloc(8);
@@ -29,13 +47,13 @@ const rawAccount = (version: "v1" | "v2", message: Buffer, createdAt = 0): Buffe
 
   const len = Buffer.alloc(4);
   len.writeUInt32LE(message.length, 0);
-  return Buffer.concat([MESSAGE_SENT_DISCRIMINATOR, payer.toBuffer(), prefix, len, message]);
+  return Buffer.concat([MESSAGE_SENT_DISCRIMINATOR, Buffer.from(payer.toBytes()), prefix, len, message]);
 };
 
 const account = (version: "v1" | "v2", createdAt = 0): EventAccount =>
   decodeEventAccount(
     version,
-    Keypair.generate().publicKey,
+    address(),
     version === "v1" ? 2_923_200 : 3_869_760,
     rawAccount(version, Buffer.alloc(version === "v1" ? 248 : 376, 7), createdAt)
   );
@@ -78,9 +96,8 @@ test("rejects account data too short to hold a length prefix", () => {
 test("encodes v1 instruction data to exact bytes", () => {
   const item = claimable("v1");
   item.attestation = { attestation: Buffer.from("aabbcc", "hex") };
-  const { data } = buildReclaimInstruction(item);
 
-  assert.equal(data.toString("hex"), "5ec6b49f83ec0fae03000000aabbcc");
+  assert.equal(dataOf(item).toString("hex"), "5ec6b49f83ec0fae03000000aabbcc");
 });
 
 test("encodes v2 instruction data to exact bytes", () => {
@@ -89,21 +106,26 @@ test("encodes v2 instruction data to exact bytes", () => {
     attestation: Buffer.from("aabbcc", "hex"),
     destinationMessage: Buffer.from("ddee", "hex"),
   };
-  const { data } = buildReclaimInstruction(item);
 
-  assert.equal(data.toString("hex"), "5ec6b49f83ec0fae03000000aabbcc02000000ddee");
+  assert.equal(dataOf(item).toString("hex"), "5ec6b49f83ec0fae03000000aabbcc02000000ddee");
 });
 
 test("requires rent exemption plus one fee per batch", () => {
-  assert.ok(requiredBalance([1]) > RENT_EXEMPT_MINIMUM + SIGNATURE_FEE);
-  assert.ok(requiredBalance([1, 1, 1, 1]) > requiredBalance([1]));
-  assert.equal(requiredBalance([]), RENT_EXEMPT_MINIMUM + SIGNATURE_FEE);
+  assert.ok(requiredBalance([1], RENT) > RENT + SIGNATURE_FEE);
+  assert.ok(requiredBalance([1, 1, 1, 1], RENT) > requiredBalance([1], RENT));
+  assert.equal(requiredBalance([], RENT), RENT + SIGNATURE_FEE);
+});
+
+test("uses the live rent exempt minimum, not the pre-cut one", () => {
+  const balance = requiredBalance([1], RENT);
+  assert.equal(topUpNeeded(balance, [1], RENT), 0);
+  assert.equal(topUpNeeded(balance, [1], 890_880), MIN_TOP_UP);
 });
 
 test("asks for a round top up only when the balance is short", () => {
-  assert.equal(topUpNeeded(requiredBalance([1]), [1]), 0);
-  assert.equal(topUpNeeded(0, [1]), MIN_TOP_UP);
-  assert.equal(topUpNeeded(RENT_EXEMPT_MINIMUM, [1]), MIN_TOP_UP);
+  assert.equal(topUpNeeded(requiredBalance([1], RENT), [1], RENT), 0);
+  assert.equal(topUpNeeded(0, [1], RENT), MIN_TOP_UP);
+  assert.equal(topUpNeeded(RENT, [1], RENT), MIN_TOP_UP);
 });
 
 test("v1 is always unlocked, v2 unlocks exactly on the boundary", () => {
@@ -119,7 +141,8 @@ test("sums lamports", () => {
 
 test("builds v1 instruction data as discriminator + length + attestation", () => {
   const item = claimable("v1");
-  const { data, keys } = buildReclaimInstruction(item);
+  const { keys } = buildReclaimInstruction(item);
+  const data = dataOf(item);
 
   assert.deepEqual(data.subarray(0, 8), RECLAIM_DISCRIMINATOR);
   assert.equal(data.readUInt32LE(8), 130);
@@ -137,7 +160,7 @@ test("builds v1 instruction data as discriminator + length + attestation", () =>
 });
 
 test("appends the destination message for v2", () => {
-  const { data } = buildReclaimInstruction(claimable("v2"));
+  const data = dataOf(claimable("v2"));
   assert.equal(data.readUInt32LE(8), 130);
   assert.equal(data.readUInt32LE(8 + 4 + 130), 376);
   assert.equal(data.length, 8 + 4 + 130 + 4 + 376);
@@ -186,7 +209,7 @@ test("never exceeds the transaction size limit and loses nothing", () => {
   const batches = planBatches(items, payer);
 
   for (const batch of batches) {
-    const size = buildTransaction(batch, payer, PublicKey.default.toBase58()).serialize().length;
+    const size = buildTransaction(batch, payer, BLOCKHASH).serialize().length;
     assert.ok(size <= MAX_TX_BYTES, `batch of ${batch.accounts.length} is ${size} bytes`);
   }
 
@@ -197,6 +220,71 @@ test("never exceeds the transaction size limit and loses nothing", () => {
   assert.equal(
     batches.reduce((sum, b) => sum + b.lamports, 0),
     totalLamports(items.map((i) => i.account))
+  );
+});
+
+test("v1 transactions pack more reclaims and stay inside size and compute limits", () => {
+  const items = [
+    ...Array.from({ length: 20 }, () => claimable("v1")),
+    ...Array.from({ length: 12 }, () => claimable("v2")),
+  ];
+  const legacy = planBatches(items, payer);
+  const batches = planBatches(items, payer, 1);
+
+  assert.ok(batches.length < legacy.length / 2, `${batches.length} vs ${legacy.length}`);
+  assert.ok(batches.some((b) => b.accounts.filter((a) => a.version === "v2").length > 1));
+
+  for (const batch of batches) {
+    const transaction = buildTransaction(batch, payer, BLOCKHASH);
+    const size = transaction.serialize().length;
+    assert.equal(transaction.version, 1);
+    assert.ok(size <= MAX_V1_TX_BYTES, `batch of ${batch.accounts.length} is ${size} bytes`);
+    assert.ok(batch.accounts.length * CU_PER_ACCOUNT + CU_MARGIN <= MAX_CU_PER_TX);
+  }
+
+  assert.equal(
+    batches.reduce((sum, b) => sum + b.accounts.length, 0),
+    items.length
+  );
+});
+
+test("v1 transactions carry budget in the message, not compute budget instructions", () => {
+  const [batch] = planBatches([claimable("v1"), claimable("v1")], payer, 1);
+  const { message } = buildTransaction(batch, payer, BLOCKHASH, 100_000);
+
+  assert.equal(message.compiledInstructions.length, 2);
+  assert.ok("transactionConfig" in message);
+  assert.deepEqual(message.transactionConfig, {
+    computeUnitLimit: 2 * CU_PER_ACCOUNT + CU_MARGIN,
+    loadedAccountsDataSizeLimit: 64 * 1024 * 1024,
+    priorityFeeLamports: BigInt(Math.ceil(((2 * CU_PER_ACCOUNT + CU_MARGIN) * 100_000) / 1_000_000)),
+  });
+});
+
+test("never mixes v1 and v2 reclaims in one transaction", () => {
+  const items = [
+    ...Array.from({ length: 11 }, () => claimable("v1")),
+    ...Array.from({ length: 10 }, () => claimable("v2")),
+  ];
+
+  for (const version of [0, 1] as const) {
+    for (const batch of planBatches(items, payer, version)) {
+      assert.equal(new Set(batch.accounts.map((a) => a.version)).size, 1);
+    }
+  }
+});
+
+test("reads coded production errors from their context and cause", () => {
+  const http = Object.assign(new Error("Solana error #8100002; Decode this error by running ..."), {
+    context: { __code: 8100002, statusCode: 403 },
+  });
+  const wrapped = new Error("Wallet send failed.", { cause: http });
+
+  assert.equal(friendlyError(http), "The RPC endpoint refused this request.");
+  assert.equal(friendlyError(wrapped), "The RPC endpoint refused this request.");
+  assert.equal(
+    friendlyError({ InstructionError: [0n, { Custom: 6033n }] }),
+    "This account is still inside its 5 day lock."
   );
 });
 

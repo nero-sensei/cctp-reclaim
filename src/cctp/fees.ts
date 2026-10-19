@@ -1,5 +1,16 @@
 import { Connection } from "@solana/web3.js";
-import { MAX_PRIORITY_FEE, MIN_PRIORITY_FEE, PROGRAMS } from "./constants";
+import {
+  CU_MARGIN,
+  CU_PER_ACCOUNT,
+  MAX_PRIORITY_FEE,
+  MIN_PRIORITY_FEE,
+  PROGRAMS,
+} from "./constants";
+
+export const computeUnits = (count: number): number => count * CU_PER_ACCOUNT + CU_MARGIN;
+
+export const priorityLamports = (count: number, microLamports: number): number =>
+  Math.ceil((computeUnits(count) * microLamports) / 1_000_000);
 
 const clamp = (value: number): number =>
   Math.max(MIN_PRIORITY_FEE, Math.min(MAX_PRIORITY_FEE, Math.round(value)));
@@ -36,7 +47,7 @@ async function medianRecent(connection: Connection): Promise<number> {
     lockedWritableAccounts: [PROGRAMS.v1.program, PROGRAMS.v2.program],
   });
 
-  const fees = recent.map((entry) => entry.prioritizationFee).sort((a, b) => a - b);
+  const fees = recent.map((entry) => Number(entry.prioritizationFee)).sort((a, b) => a - b);
   if (fees.length === 0) return MIN_PRIORITY_FEE;
 
   return fees[Math.floor(fees.length / 2)];

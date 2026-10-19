@@ -1,17 +1,18 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { buildTransaction, Claimable, fetchAttestation, isUnlocked, planBatches, scanWallet, totalLamports } from "../cctp";
-import { sol } from "../format";
+import { sol, stringify } from "../format";
 import { sleep } from "./util";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const wallet = args.find((a: string) => !a.startsWith("--"));
   const simulate = args.includes("--simulate");
+  const version = args.includes("--v1") ? 1 : 0;
   const limit = Number(args.find((a: string) => a.startsWith("--limit="))?.split("=")[1] ?? 25);
   const rpc = process.env.RPC_URL ?? process.env.SOLANA_RPC_URL;
 
   if (!wallet || !rpc) {
-    console.error("usage: RPC_URL=<url> scan <wallet> [--simulate] [--limit=N]");
+    console.error("usage: RPC_URL=<url> scan <wallet> [--simulate] [--v1] [--limit=N]");
     process.exit(1);
   }
 
@@ -47,7 +48,7 @@ async function main(): Promise<void> {
   if (pending > 0) console.log(`${pending} awaiting attestation`);
   if (claimables.length === 0) return;
 
-  const batches = planBatches(claimables, owner);
+  const batches = planBatches(claimables, owner, version);
   const total = batches.reduce((sum, b) => sum + b.lamports, 0);
   console.log(`${batches.length} transaction(s) · ${claimables.length} accounts · ${sol(total)} SOL`);
 
@@ -61,7 +62,11 @@ async function main(): Promise<void> {
       { sigVerify: false, replaceRecentBlockhash: true, commitment: "processed" }
     );
     const label = `tx ${i + 1}/${batches.length} (${batch.accounts.length})`;
-    console.log(value.err ? `${label} failed ${JSON.stringify(value.err)}` : `${label} ok`);
+    console.log(
+      value.err
+        ? `${label} failed ${stringify(value.err)}`
+        : `${label} ok, ${value.unitsConsumed} CU`
+    );
   }
 }
 

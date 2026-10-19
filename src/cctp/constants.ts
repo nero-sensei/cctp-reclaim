@@ -21,12 +21,15 @@ export const PROGRAMS: Record<
 export const MESSAGE_SENT_DISCRIMINATOR = Buffer.from([131, 100, 133, 56, 166, 225, 151, 60]);
 export const RECLAIM_DISCRIMINATOR = Buffer.from([0x5e, 0xc6, 0xb4, 0x9f, 0x83, 0xec, 0x0f, 0xae]);
 export const RENT_PAYER_OFFSET = 8;
+export const PAUSED_OFFSET = 136;
 export const RECLAIM_WINDOW_SECS = 432_000;
 export const IRIS_BASE = "https://iris-api.circle.com";
 export const IRIS_MIN_INTERVAL_MS = 120;
 export const SOLANA_DOMAIN = 5;
 export const MAX_TX_BYTES = 1232;
-export const RENT_EXEMPT_MINIMUM = 890_880;
+export const MAX_V1_TX_BYTES = 4096;
+export const MAX_CU_PER_TX = 1_400_000;
+export const MAX_LOADED_ACCOUNTS_DATA = 64 * 1024 * 1024;
 export const SIGNATURE_FEE = 5_000;
 
 export const CU_PER_ACCOUNT = 150_000;
