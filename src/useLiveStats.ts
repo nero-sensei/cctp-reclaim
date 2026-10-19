@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useConnection } from "@solana/wallet-adapter-react";
+import { useConnection } from "@solana/wallet-adapter";
 import { PROGRAMS } from "./cctp";
 import { Stats, useStats } from "./useStats";
 

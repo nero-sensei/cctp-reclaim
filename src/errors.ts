@@ -1,11 +1,18 @@
+import { stringify } from "./format";
+
 const PROGRAM_ERRORS: Record<number, string> = {
-  6001: "Circle has paused the program. Try again later.",
+  6001: "Circle has paused this CCTP program, so it can't close accounts.",
   6032: "Circle returned a message that no longer matches this account.",
   6033: "This account is still inside its 5 day lock.",
 };
 
 export function friendlyError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" && error !== null
+        ? stringify(error)
+        : String(error);
   const lower = message.toLowerCase();
 
   if (lower.includes("user rejected") || lower.includes("rejected the request")) {
@@ -14,7 +21,12 @@ export function friendlyError(error: unknown): string {
   if (lower.includes("insufficientfundsforrent") || lower.includes("insufficient funds")) {
     return "Not enough SOL to cover the network fee. Send a little SOL to this wallet first.";
   }
-  if (lower.includes("blockheight") || lower.includes("expired") || lower.includes("timed out")) {
+  if (
+    lower.includes("blockheight") ||
+    lower.includes("expired") ||
+    lower.includes("timed out") ||
+    lower.includes("blockhash not found")
+  ) {
     return "The network was busy and the transaction expired. Try again.";
   }
   if (lower.includes("access forbidden") || lower.includes("403")) {

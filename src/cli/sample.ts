@@ -14,7 +14,7 @@ import {
   scanWallet,
   totalLamports,
 } from "../cctp";
-import { sol } from "../format";
+import { sol, stringify } from "../format";
 import { sleep } from "./util";
 
 async function payerCounts(
@@ -67,9 +67,10 @@ async function check(connection: Connection, wallet: string): Promise<boolean> {
   }
 
   const batches = planBatches(claimables, owner);
-  const balance = await connection.getBalance(owner);
+  const balance = Number(await connection.getBalance(owner));
+  const rentExempt = Number(await connection.getMinimumBalanceForRentExemption(0));
 
-  if (balance < requiredBalance(batches.map((b) => b.accounts.length))) {
+  if (balance < requiredBalance(batches.map((b) => b.accounts.length), rentExempt)) {
     console.log(`${label} · underfunded, balance ${sol(balance)} SOL`);
     return true;
   }
@@ -84,7 +85,7 @@ async function check(connection: Connection, wallet: string): Promise<boolean> {
     );
     if (value.err) {
       failures += 1;
-      console.log(`  ${wallet.slice(0, 8)}… batch failed ${JSON.stringify(value.err)}`);
+      console.log(`  ${wallet.slice(0, 8)}… batch failed ${stringify(value.err)}`);
     }
   }
 

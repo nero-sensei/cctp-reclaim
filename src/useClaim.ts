@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { useConnection, useWallet } from "@solana/wallet-adapter";
+import type { BlockhashWithExpiryBlockHeight } from "@solana/web3.js";
 import {
+  Attestation,
   Batch,
+  CctpVersion,
   Claimable,
   EventAccount,
   buildTransaction,
   fetchAttestation,
   isUnlocked,
+  pausedVersions,
   planBatches,
   priorityFee,
   scanWallet,
@@ -24,6 +28,8 @@ interface State {
   accounts: EventAccount[];
   batches: Batch[];
   pending: number;
+  paused: number;
+  pausedVersions: CctpVersion[];
   skipped: number;
   topUp: number;
   attempting: number;
@@ -40,6 +46,8 @@ const initial: State = {
   accounts: [],
   batches: [],
   pending: 0,
+  paused: 0,
+  pausedVersions: [],
   skipped: 0,
   topUp: 0,
   attempting: 0,
@@ -53,8 +61,11 @@ const initial: State = {
 
 export function useClaim() {
   const { connection } = useConnection();
-  const { publicKey, sendTransaction, signAllTransactions } = useWallet();
+  const { publicKey, sendTransaction, signAllTransactions, supportedTransactionVersions } =
+    useWallet();
+  const txVersion = supportedTransactionVersions?.has(1) ? 1 : 0;
   const [state, setState] = useState<State>(initial);
+  const attested = useRef(new Map<string, Attestation>());
   const request = useRef(0);
   const inFlight = useRef<string | null>(null);
   const busy = useRef(false);
@@ -76,7 +87,7 @@ export function useClaim() {
     if (!publicKey || busy.current) return;
 
     const owner = publicKey;
-    const address = owner.toBase58();
+    const address = `${owner.toBase58()}:${txVersion}`;
     if (inFlight.current === address) return;
 
     inFlight.current = address;
@@ -86,28 +97,41 @@ export function useClaim() {
     setState((s) => ({ ...s, status: "scanning", error: null }));
 
     try {
-      const [accounts, balance] = await Promise.all([
+      const [accounts, balance, rentExempt, halted] = await Promise.all([
         scanWallet(connection, owner),
         connection.getBalance(owner),
+        connection.getMinimumBalanceForRentExemption(0),
+        pausedVersions(connection),
       ]);
 
       const claimables: Claimable[] = [];
       let pending = 0;
+      let paused = 0;
       let skipped = 0;
 
       for (const account of accounts.filter((a) => isUnlocked(a))) {
         if (!current()) return;
 
+        if (halted.includes(account.version)) {
+          paused += 1;
+          continue;
+        }
+
+        const key = account.address.toBase58();
+
         try {
-          const attestation = await fetchAttestation(connection, account);
-          if (attestation) claimables.push({ account, attestation });
-          else pending += 1;
+          const attestation =
+            attested.current.get(key) ?? (await fetchAttestation(connection, account));
+          if (attestation) {
+            attested.current.set(key, attestation);
+            claimables.push({ account, attestation });
+          } else pending += 1;
         } catch {
           skipped += 1;
         }
       }
 
-      const planned = claimables.length > 0 ? planBatches(claimables, owner) : [];
+      const planned = claimables.length > 0 ? planBatches(claimables, owner, txVersion) : [];
       skipped += claimables.length - planned.reduce((sum, b) => sum + b.accounts.length, 0);
 
       if (!current()) return;
@@ -120,10 +144,13 @@ export function useClaim() {
         accounts,
         batches,
         pending,
+        paused,
+        pausedVersions: halted,
         skipped,
         topUp: topUpNeeded(
-          balance,
-          batches.map((b) => b.accounts.length)
+          Number(balance),
+          batches.map((b) => b.accounts.length),
+          Number(rentExempt)
         ),
       });
     } catch (error) {
@@ -133,10 +160,14 @@ export function useClaim() {
     } finally {
       if (inFlight.current === address) inFlight.current = null;
     }
-  }, [connection, publicKey]);
+  }, [connection, publicKey, txVersion]);
 
   const claim = useCallback(async (oneAtATime = false) => {
     if (!publicKey || state.batches.length === 0 || busy.current) return;
+    if (state.batches.some((b) => b.version !== txVersion)) {
+      scan();
+      return;
+    }
 
     const id = ++request.current;
     const current = () => id === request.current;
@@ -167,15 +198,17 @@ export function useClaim() {
 
       const group = state.batches.slice(start, start + chunk);
       let transactions;
+      let lifetime: BlockhashWithExpiryBlockHeight;
 
       try {
         setState((s) => ({ ...s, status: "signing", signingAt: start }));
 
-        const [{ blockhash }, fee] = await Promise.all([
+        const [latest, fee] = await Promise.all([
           connection.getLatestBlockhash(),
           priorityFee(connection, RPC_URL),
         ]);
-        transactions = group.map((b) => buildTransaction(b, publicKey, blockhash, fee));
+        lifetime = latest;
+        transactions = group.map((b) => buildTransaction(b, publicKey, latest.blockhash, fee));
 
         if (signAllTransactions) transactions = await signAllTransactions(transactions);
       } catch (error) {
@@ -200,7 +233,11 @@ export function useClaim() {
               ? await connection.sendRawTransaction(transaction.serialize())
               : await sendTransaction(transaction, connection);
 
-            await connection.confirmTransaction(signature, "confirmed");
+            const { value } = await connection.confirmTransaction(
+              { signature, ...lifetime },
+              "confirmed"
+            );
+            if (value.err) throw value.err;
 
             if (current()) {
               const closed = new Set(group[index].accounts.map((a) => a.address.toBase58()));
@@ -218,6 +255,7 @@ export function useClaim() {
             console.error(error);
             last = error;
             rejected = true;
+            group[index].accounts.forEach((a) => attested.current.delete(a.address.toBase58()));
             if (current()) setState((s) => ({ ...s, failed: s.failed + 1 }));
           }
         })
@@ -239,7 +277,7 @@ export function useClaim() {
       status: "done",
       error: s.failed > 0 || last !== null ? friendlyError(last) : null,
     }));
-  }, [connection, publicKey, sendTransaction, signAllTransactions, state.batches]);
+  }, [connection, publicKey, scan, sendTransaction, signAllTransactions, state.batches, txVersion]);
 
   return {
     ...state,

@@ -51,7 +51,7 @@ async function collect(
   for (let prefix = 0; prefix < BUCKETS; prefix++) {
     for (const { account } of await bucket(connection, version, prefix)) {
       payers.add(new PublicKey(account.data).toBase58());
-      lamports += account.lamports;
+      lamports += Number(account.lamports);
       accounts += 1;
     }
 

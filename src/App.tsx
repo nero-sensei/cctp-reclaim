@@ -1,10 +1,21 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
-import { useConnection, useWallet } from "@solana/wallet-adapter-react";
-import { WalletMultiButton, useWalletModal } from "@solana/wallet-adapter-react-ui";
+import {
+  WalletMultiButton,
+  useConnection,
+  useWallet,
+  useWalletModal,
+} from "@solana/wallet-adapter";
 import { PublicKey } from "@solana/web3.js";
-import { EventAccount, RECLAIM_WINDOW_SECS, isUnlocked, scanWallet } from "./cctp";
-import { V1_RETIREMENT_BEGINS } from "./deprecation";
+import {
+  CctpVersion,
+  EventAccount,
+  RECLAIM_WINDOW_SECS,
+  isUnlocked,
+  pausedVersions,
+  scanWallet,
+} from "./cctp";
+import { V1_RETIREMENT_COMPLETES } from "./deprecation";
 import { friendlyError } from "./errors";
 import Footer from "./Footer";
 
@@ -102,6 +113,7 @@ function Waiting({ accounts }: { accounts: EventAccount[] }) {
 
 interface AddressResult {
   accounts: EventAccount[];
+  paused: CctpVersion[];
 }
 
 export default function App() {
@@ -149,7 +161,9 @@ export default function App() {
 
   const addressClaimable = useMemo(() => {
     if (!addressResult) return 0;
-    return addressResult.accounts.filter((a) => isUnlocked(a)).reduce((s, a) => s + a.lamports, 0);
+    return addressResult.accounts
+      .filter((a) => isUnlocked(a) && !addressResult.paused.includes(a.version))
+      .reduce((s, a) => s + a.lamports, 0);
   }, [addressResult]);
 
   const handleAddressSubmit = useCallback(async () => {
@@ -168,8 +182,11 @@ export default function App() {
     setAddressResult(null);
 
     try {
-      const found = await scanWallet(connection, new PublicKey(addr));
-      setAddressResult({ accounts: found });
+      const [found, paused] = await Promise.all([
+        scanWallet(connection, new PublicKey(addr)),
+        pausedVersions(connection),
+      ]);
+      setAddressResult({ accounts: found, paused });
     } catch (error) {
       setAddressError(friendlyError(error));
     } finally {
@@ -188,13 +205,18 @@ export default function App() {
     if (status !== "ready" || Date.now() - rescannedAt.current < 60_000) return;
 
     const now = Math.floor(Date.now() / 1000);
-    const missing = accounts.some((a) => isUnlocked(a, now) && !planned.has(a.address.toBase58()));
+    const missing = accounts.some(
+      (a) =>
+        isUnlocked(a, now) &&
+        !planned.has(a.address.toBase58()) &&
+        !claim.pausedVersions.includes(a.version)
+    );
 
     if (missing) {
       rescannedAt.current = Date.now();
       scan();
     }
-  }, [accounts, planned, scan, status]);
+  }, [accounts, claim.pausedVersions, planned, scan, status]);
 
   useEffect(() => {
     const timer = setInterval(rescanIfUnlocked, 15_000);
@@ -366,12 +388,13 @@ export default function App() {
 
                 <Reveal delay={0.24}>
                   <div className="mt-12 flex flex-col lg:mt-0">
-                    <h2 className="eyebrow">Retiring CCTP V1</h2>
+                    <h2 className="eyebrow">CCTP V1 claims end</h2>
                     <div className="mt-4">
-                      <Countdown target={V1_RETIREMENT_BEGINS} />
+                      <Countdown target={V1_RETIREMENT_COMPLETES} />
                     </div>
                     <p className="faint mt-4 t-2xs leading-relaxed">
-                      Starts 31 October 2026. Funds stay claimable, but new V1 activity ends.{" "}
+                      Circle pauses V1 on 1 December 2026. A paused V1 program won&apos;t close
+                      accounts, so V1 rent left after that stays locked.{" "}
                       <a
                         href={SOURCES[0].href}
                         target="_blank"
@@ -476,8 +499,9 @@ export default function App() {
                             </>
                           ) : (
                             <span className="muted t-xs">
-                              Nothing claimable yet. Attestations or the 5 day lock are still
-                              pending.
+                              {claim.paused > 0 && claim.paused === accounts.length
+                                ? "Circle has paused CCTP, so these accounts can't be closed."
+                                : "Nothing claimable yet. Attestations or the 5 day lock are still pending."}
                             </span>
                           )}
 
@@ -553,6 +577,9 @@ export default function App() {
                         />
                         {claim.pending > 0 && (
                           <Row label="Awaiting attestation" value={String(claim.pending)} />
+                        )}
+                        {claim.paused > 0 && (
+                          <Row label="Paused by Circle" value={String(claim.paused)} />
                         )}
                         {claim.skipped > 0 && <Row label="Skipped" value={String(claim.skipped)} />}
                       </div>

@@ -4,6 +4,14 @@ export const sol = (lamports: number, digits = 4): string =>
     maximumFractionDigits: digits,
   });
 
+export const stringify = (value: unknown): string => {
+  try {
+    return JSON.stringify(value, (_, v) => (typeof v === "bigint" ? Number(v) : v));
+  } catch {
+    return String(value);
+  }
+};
+
 export const usd = (value: number): string =>
   value.toLocaleString(undefined, {
     minimumFractionDigits: value >= 1000 ? 0 : 2,
