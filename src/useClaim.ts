@@ -235,7 +235,7 @@ export function useClaim() {
 
             const { value } = await connection.confirmTransaction(
               { signature, ...lifetime },
-              "confirmed"
+              "finalized"
             );
             if (value.err) throw value.err;
 

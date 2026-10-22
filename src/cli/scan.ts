@@ -16,7 +16,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const connection = new Connection(rpc, "confirmed");
+  const connection = new Connection(rpc, "finalized");
   const owner = new PublicKey(wallet);
   const accounts = await scanWallet(connection, owner);
 
