@@ -8,6 +8,8 @@ import { RPC_URL } from "./config";
 import "@solana/wallet-adapter/styles.css";
 import "./index.css";
 
+const CONNECTION_CONFIG = { commitment: "finalized" } as const;
+
 function Missing() {
   return (
     <div className="mx-auto flex min-h-screen max-w-[420px] flex-col justify-center gap-3 px-6">
@@ -28,7 +30,7 @@ function Root() {
   return (
     <LazyMotion features={domAnimation} strict>
       <MotionConfig reducedMotion="user">
-        <ConnectionProvider endpoint={endpoint}>
+        <ConnectionProvider endpoint={endpoint} config={CONNECTION_CONFIG}>
           <WalletProvider chain="solana:mainnet">
             <WalletModalProvider>
               <App />

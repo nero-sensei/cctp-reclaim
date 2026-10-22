@@ -10,7 +10,7 @@ async function main(): Promise<void> {
 
   const started = Date.now();
   const stats = await countStats(
-    new Connection(rpc, "confirmed"),
+    new Connection(rpc, "finalized"),
     Number(process.env.STATS_PAUSE_MS ?? 250)
   );
 

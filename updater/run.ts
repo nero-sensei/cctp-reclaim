@@ -102,7 +102,7 @@ async function once(): Promise<void> {
   const started = Date.now();
   log(`counting via ${new URL(RPC_URL).host}`);
 
-  const stats = await countStats(new Connection(RPC_URL, "confirmed"), PAUSE_MS, log);
+  const stats = await countStats(new Connection(RPC_URL, "finalized"), PAUSE_MS, log);
   const seconds = Math.round((Date.now() - started) / 1000);
 
   let delta: number | null = null;

@@ -30,7 +30,7 @@ export function useLiveStats(): LiveStats | null {
           if (text.includes("ReclaimEventAccount")) setReclaimed((n) => n + 1);
           else if (text.includes("SendMessage")) setCreated((n) => n + 1);
         },
-        "confirmed"
+        "finalized"
       )
     );
 
