@@ -56,8 +56,11 @@ export default {
     if (!upstream) return rpcError(503, -32603, "no upstream configured", headers);
 
     if (request.headers.get("upgrade")?.toLowerCase() === "websocket") {
-      const response = await proxyWebSocket(upstream, request);
-      return response ?? rpcError(502, -32603, "upstream refused websocket", headers);
+      for (const url of upstreams) {
+        const response = await proxyWebSocket(url, request).catch(() => null);
+        if (response) return response;
+      }
+      return rpcError(502, -32603, "upstream refused websocket", headers);
     }
 
     if (request.method !== "POST") return rpcError(405, -32600, "use POST", headers);

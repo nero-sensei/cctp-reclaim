@@ -139,6 +139,13 @@ describe("forwarding", () => {
     expect(await response.text()).not.toMatch(/secret|example/);
   });
 
+  test("tries every upstream when a websocket upgrade throws or is refused", async () => {
+    upstream.mockRejectedValueOnce(new TypeError("fetch failed"));
+    const response = await call(null, { method: "GET", headers: { upgrade: "websocket" } });
+    expect(response.status).toBe(502);
+    expect(new Set(calledUrls())).toEqual(new Set(UPSTREAMS));
+  });
+
   test("allows getProgramAccounts with a memcmp filter", async () => {
     const body = {
       ...rpc("getProgramAccounts"),

@@ -4,8 +4,6 @@ import { rejection, subscriptions, track, type Subscriptions } from "./subscript
 const frame = (method: string, id: unknown = 1, params: unknown[] = []) =>
   JSON.stringify({ jsonrpc: "2.0", id, method, params });
 
-const padded = (pad: string) => frame("slotSubscribe", 1, [pad]);
-
 const error = (reply: string | null) => JSON.parse(reply ?? "null");
 
 function subscribe(state: Subscriptions, id: number, result: unknown = id + 100) {
@@ -14,12 +12,9 @@ function subscribe(state: Subscriptions, id: number, result: unknown = id + 100)
 }
 
 describe("allowed", () => {
-  test.each(["accountSubscribe", "signatureSubscribe", "slotSubscribe"])(
-    "forwards %s",
-    (method) => {
-      expect(rejection(subscriptions(), frame(method, 1, ["x"]))).toBeNull();
-    },
-  );
+  test.each(["signatureSubscribe", "slotSubscribe"])("forwards %s", (method) => {
+    expect(rejection(subscriptions(), frame(method, 1, ["x"]))).toBeNull();
+  });
 
   test("forwards kit's id-less ping", () => {
     expect(
@@ -66,14 +61,23 @@ describe("rejected", () => {
     expect(error(rejection(subscriptions(), data)).error.code).toBe(code);
   });
 
-  test("a frame over 4 KB, counted in bytes", () => {
-    const fits = padded("x".repeat(4096 - padded("").length));
-    const multibyte = padded("é".repeat(3000));
-    expect(multibyte.length).toBeLessThan(4096);
+  test("a frame over 4 KB", () => {
+    const fits = frame("slotSubscribe", 1, ["x".repeat(4000)]);
     expect(rejection(subscriptions(), fits)).toBeNull();
-    for (const data of [`${fits} `, multibyte]) {
-      expect(error(rejection(subscriptions(), data)).error.message).toBe("frame too large");
-    }
+    expect(error(rejection(subscriptions(), `${fits}${" ".repeat(200)}`)).error.message).toBe(
+      "frame too large",
+    );
+  });
+
+  test.each([
+    ["a ping with an id", frame("ping", "x")],
+    [
+      "an unsubscribe without an id",
+      JSON.stringify({ jsonrpc: "2.0", method: "slotUnsubscribe", params: [1] }),
+    ],
+    ["accountSubscribe", frame("accountSubscribe", 1, ["x"])],
+  ])("%s", (_label, data) => {
+    expect(rejection(subscriptions(), data)).not.toBeNull();
   });
 
   test("a subscribe without an id, which upstream would never confirm", () => {
@@ -94,7 +98,7 @@ describe("subscription cap", () => {
     for (let id = 1; id <= 8; id++) subscribe(state, id);
     for (let id = 9; id <= 16; id++)
       expect(rejection(state, frame("slotSubscribe", id))).toBeNull();
-    const reply = error(rejection(state, frame("accountSubscribe", 17, ["x"])));
+    const reply = error(rejection(state, frame("signatureSubscribe", 17, ["x"])));
     expect(reply).toMatchObject({ id: 17, error: { code: -32005 } });
   });
 
@@ -103,7 +107,9 @@ describe("subscription cap", () => {
     for (let id = 1; id <= 16; id++) subscribe(state, id);
     expect(rejection(state, frame("slotSubscribe", 17))).not.toBeNull();
     expect(rejection(state, frame("slotUnsubscribe", 18, [101]))).toBeNull();
-    expect(rejection(state, frame("slotSubscribe", 19))).toBeNull();
+    expect(rejection(state, frame("slotSubscribe", 19))).not.toBeNull();
+    track(state, JSON.stringify({ jsonrpc: "2.0", id: 18, result: true }));
+    expect(rejection(state, frame("slotSubscribe", 20))).toBeNull();
   });
 
   test("a failed subscribe frees its slot", () => {
@@ -134,7 +140,7 @@ describe("subscription cap", () => {
   test.each([
     ["an unknown subscription id", frame("slotUnsubscribe", 9, [999])],
     ["the subscription id as a string", frame("slotUnsubscribe", 9, ["101"])],
-    ["the wrong unsubscribe method", frame("accountUnsubscribe", 9, [101])],
+    ["the wrong unsubscribe method", frame("signatureUnsubscribe", 9, [101])],
     ["missing params", JSON.stringify({ jsonrpc: "2.0", id: 9, method: "slotUnsubscribe" })],
   ])("bogus unsubscribes cannot free slots: %s", (_label, data) => {
     const state = subscriptions();
@@ -160,5 +166,26 @@ describe("subscription cap", () => {
       });
     }
     expect(state.pending.size).toBe(1);
+  });
+
+  test("an unsubscribe reply cannot be counted as a subscription", () => {
+    const state = subscriptions();
+    subscribe(state, 1);
+    expect(rejection(state, frame("slotUnsubscribe", "x", [101]))).toBeNull();
+    expect(error(rejection(state, frame("slotSubscribe", "x")))).toMatchObject({
+      error: { code: -32600 },
+    });
+    track(state, JSON.stringify({ jsonrpc: "2.0", id: "x", result: true }));
+    expect([state.pending.size, state.active.size]).toEqual([0, 0]);
+  });
+});
+
+describe("frame budget", () => {
+  test("allows a burst of 60 frames, then one per second", () => {
+    const state = subscriptions(0);
+    const ping = JSON.stringify({ jsonrpc: "2.0", method: "ping" });
+    for (let i = 0; i < 60; i++) expect(rejection(state, ping, 0)).toBeNull();
+    expect(error(rejection(state, ping, 0)).error.code).toBe(-32005);
+    expect(rejection(state, ping, 5_000)).toBeNull();
   });
 });

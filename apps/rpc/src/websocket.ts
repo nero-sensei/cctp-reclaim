@@ -2,7 +2,7 @@ import { rejection, subscriptions, track } from "./subscriptions.ts";
 
 function websocketHeaders(request: Request): Headers {
   const headers = new Headers({ upgrade: "websocket" });
-  for (const name of ["sec-websocket-key", "sec-websocket-version", "sec-websocket-protocol"]) {
+  for (const name of ["sec-websocket-key", "sec-websocket-version"]) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
   }
@@ -17,8 +17,7 @@ export async function proxyWebSocket(upstream: string, request: Request): Promis
     return null;
   }
 
-  const pair = new WebSocketPair();
-  const [client, local] = [pair[0], pair[1]];
+  const { 0: client, 1: local } = new WebSocketPair();
   local.accept();
   remote.accept();
 
