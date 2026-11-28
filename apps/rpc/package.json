@@ -1,0 +1,15 @@
+{
+  "name": "@jigs/rpc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "postinstall": "wrangler types --include-env=false",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vp test"
+  },
+  "devDependencies": {
+    "vite-plus": "catalog:",
+    "wrangler": "catalog:"
+  }
+}

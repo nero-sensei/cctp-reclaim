@@ -1,4 +1,22 @@
+packages:
+  - apps/*
+  - packages/*
+
+catalogMode: strict
+
+catalog:
+  "@noble/hashes": ^2.4.0
+  "@solana/kit": ^8.6.0
+  "@solana/kit-plugin-rpc": ^0.23.0
+  "@types/node": ^26.6.11
+  typescript: ^7.0.2
+  vite: npm:@voidzero-dev/vite-plus-core@8.3.8001
+  vite-plus: 1.8.0
+  wrangler: ^4.168.0
+
+overrides:
+  vite@*: "catalog:"
+
 allowBuilds:
-  bufferutil: true
   esbuild: true
-  utf-8-validate: true
+  workerd: true

@@ -1,22 +1,16 @@
-import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig } from "vite-plus";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  define: {
-    global: "globalThis",
-  },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes("@solana-mobile") || id.includes("qrcode")) return;
-          if (/\/@(solana|solana-program|wallet-standard)\//.test(id)) return "solana";
-          if (id.includes("motion") || id.includes("number-flow")) return "motion";
-          if (id.includes("react-dom") || id.includes("/react/")) return "react";
-        },
+  lint: {
+    categories: { correctness: "error", suspicious: "error" },
+    jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
+    rules: { "vite-plus/prefer-vite-plus-imports": "error" },
+    options: { typeAware: true, typeCheck: true },
+    overrides: [
+      {
+        files: ["**/*.test.ts"],
+        rules: { "typescript/no-unsafe-type-assertion": "off" },
       },
-    },
+    ],
   },
 });

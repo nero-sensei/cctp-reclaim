@@ -1,70 +1,15 @@
-# Reclaim
+# jigs
 
-Bridging USDC to Solana leaves your SOL behind. This gets it back.
+Small tools. [jigs.fyi](https://jigs.fyi)
 
-Not the USDC — that arrived fine. To carry the transfer, Circle's CCTP opens an account on Solana
-and you pay rent for it, about 0.003 SOL (less on newer transfers, since Solana cut rent in 2026). The
-transfer completes, nobody closes the account, and your rent stays locked in it.
-
-CCTP V1 rent has a deadline. Circle pauses V1 on 1 December 2026, and a paused V1 program refuses
-`reclaim_event_account`, so V1 rent left after that stays locked.
-
-```
-896,145 accounts still open
-  2,902 SOL locked inside them
-257,385 wallets are owed some of it
-```
-
-No fees, no custody, no backend, no tracking. Your wallet signs; the rent goes back to it.
-Your USDC is never touched.
-
-## Verify it
-
-```bash
-curl -s "$RPC_URL" -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,
- "method":"getProgramAccounts","params":["CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd",
- {"encoding":"base64","dataSlice":{"offset":0,"length":0},
-  "filters":[{"memcmp":{"offset":0,"bytes":"Nyg4DX4hvEf"}}]}]}'
-```
-
-That is CCTP V1. V2 is `CCTPV2Sm4AdWt5296sk4P66VBZ7bEhcARwFaaS9YPbeC`.
-
-## Run it
+|                                  |                                                            |
+| -------------------------------- | ---------------------------------------------------------- |
+| [`packages/cctp`](packages/cctp) | Reclaim the SOL rent Circle's CCTP leaves locked on Solana |
+| [`apps/rpc`](apps/rpc)           | RPC proxy for the tools                                    |
 
 ```bash
 pnpm install
-echo 'VITE_RPC_URL=https://your-provider/?api-key=...' > .env.local
-pnpm dev
+pnpm ready
 ```
 
-A provider endpoint is required — Solana's public RPC rejects `getProgramAccounts` from a browser.
-
-```bash
-pnpm test                                       # 22 tests
-pnpm build                                      # static output in dist/
-RPC_URL=<url> pnpm scan <wallet> --simulate     # simulate a claim, no private key
-RPC_URL=<url> pnpm scan <wallet> --simulate --v1  # same, as v1 transactions
-RPC_URL=<url> pnpm stats                        # regenerate public/stats.json
-```
-
-## How it works
-
-One `getProgramAccounts` per version, filtered on the Anchor discriminator and the rent payer. No
-indexer, no transaction history.
-
-```
-MessageSent   v1  8 disc | 32 rent_payer | 4 len | message
-              v2  8 disc | 32 rent_payer | 8 created_at | 4 len | message
-```
-
-`reclaim_event_account` verifies a Circle attestation on-chain and refunds the payer. V1 claims any
-time until Circle pauses it; V2 locks for 432,000s (error 6033 before that, measured on mainnet).
-Wallets that sign v1 transactions (4096 bytes, SIMD-0296/0385) get up to 9 V1 or ~6 V2 reclaims
-per transaction, capped by 1.4M CU. Everyone else gets v0: V1 packs ~5, V2 one. Global totals are precomputed into `stats.json` because counting every account
-means downloading 154 MB, then adjusted live over a WebSocket.
-
-## Not affiliated
-
-MIT licensed. Not affiliated with, endorsed by, or operated by Circle or Solana. USDC and CCTP are
-trademarks of Circle. CCTP is a "Permissionless Product" under Circle's Developer Terms, which
-permit third parties to build on it. Use at your own risk.
+MIT. Not affiliated with Circle or Solana. Use at your own risk.

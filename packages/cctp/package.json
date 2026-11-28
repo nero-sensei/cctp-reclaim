@@ -1,0 +1,22 @@
+{
+  "name": "@jigs/cctp",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vp test",
+    "scan": "node src/cli/scan.ts",
+    "stats": "node src/cli/stats.ts"
+  },
+  "dependencies": {
+    "@noble/hashes": "catalog:",
+    "@solana/kit": "catalog:",
+    "@solana/kit-plugin-rpc": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}
