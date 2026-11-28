@@ -11,11 +11,12 @@
     "stats": "node src/cli/stats.ts"
   },
   "dependencies": {
+    "@jigs/solana": "workspace:*",
     "@noble/hashes": "catalog:",
-    "@solana/kit": "catalog:",
-    "@solana/kit-plugin-rpc": "catalog:"
+    "@solana/kit": "catalog:"
   },
   "devDependencies": {
+    "@solana/kit-plugin-rpc": "catalog:",
     "@types/node": "catalog:",
     "vite-plus": "catalog:"
   }

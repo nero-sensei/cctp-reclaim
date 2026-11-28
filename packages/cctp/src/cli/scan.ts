@@ -1,16 +1,13 @@
 import {
   type Instruction,
   address,
-  createClient,
   createNoopSigner,
   createSolanaRpc,
   decimalFixedPointToString,
-  estimateResourceLimitsFactory,
-  flattenTransactionPlan,
   lamports,
   lamportsToSol,
 } from "@solana/kit";
-import { rpcTransactionPlanner } from "@solana/kit-plugin-rpc";
+import { printPlan } from "@jigs/solana";
 import {
   MAX_RECLAIMS_PER_TRANSACTION,
   fetchAttestation,
@@ -50,27 +47,7 @@ for (const account of accounts) {
 
 if (instructions.length === 0) process.exit(0);
 
-const estimate = estimateResourceLimitsFactory({ rpc });
-
-for (const version of [1, 0] as const) {
-  const client = createClient({ payer: owner }).use(
-    rpcTransactionPlanner({ version, maxInstructionsPerTransaction: MAX_RECLAIMS_PER_TRANSACTION }),
-  );
-  const messages = flattenTransactionPlan(await client.planTransactions(instructions)).map(
-    (plan) => plan.message,
-  );
-  console.log(`v${version}: ${instructions.length} reclaims in ${messages.length} transaction(s)`);
-
-  if (!simulate) continue;
-
-  for (const [index, message] of messages.entries()) {
-    const label = `  tx ${index + 1}/${messages.length}`;
-    try {
-      const { computeUnitLimit } = await estimate(message);
-      console.log(`${label} ok, ${computeUnitLimit} CU`);
-    } catch (error) {
-      const cause = error instanceof Error && error.cause instanceof Error ? error.cause : error;
-      console.log(`${label} failed: ${cause instanceof Error ? cause.message : String(cause)}`);
-    }
-  }
-}
+await printPlan(rpc, owner, instructions, {
+  maxInstructionsPerTransaction: MAX_RECLAIMS_PER_TRANSACTION,
+  simulate,
+});

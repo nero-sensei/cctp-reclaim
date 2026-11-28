@@ -1,0 +1,22 @@
+{
+  "name": "@jigs/rent",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vp test",
+    "scan": "node src/cli/scan.ts"
+  },
+  "dependencies": {
+    "@jigs/solana": "workspace:*",
+    "@solana-program/token-2022": "catalog:",
+    "@solana/kit": "catalog:"
+  },
+  "devDependencies": {
+    "@solana/kit-plugin-rpc": "catalog:",
+    "@types/node": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

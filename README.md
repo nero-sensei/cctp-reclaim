@@ -2,10 +2,11 @@
 
 Small tools. [jigs.fyi](https://jigs.fyi)
 
-|                                  |                                                            |
-| -------------------------------- | ---------------------------------------------------------- |
-| [`packages/cctp`](packages/cctp) | Reclaim the SOL rent Circle's CCTP leaves locked on Solana |
-| [`apps/rpc`](apps/rpc)           | RPC proxy for the tools                                    |
+|                                  |                                                                 |
+| -------------------------------- | --------------------------------------------------------------- |
+| [`packages/cctp`](packages/cctp) | Reclaim the SOL rent Circle's CCTP leaves locked on Solana      |
+| [`packages/rent`](packages/rent) | Close empty token accounts and pull excess rent out of the rest |
+| [`apps/rpc`](apps/rpc)           | RPC proxy for the tools                                         |
 
 ```bash
 pnpm install
