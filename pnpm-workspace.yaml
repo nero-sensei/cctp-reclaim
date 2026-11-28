@@ -6,6 +6,7 @@ catalogMode: strict
 
 catalog:
   "@noble/hashes": ^2.4.0
+  "@solana-program/token-2022": ^0.20.1
   "@solana/kit": ^8.6.0
   "@solana/kit-plugin-rpc": ^0.23.0
   "@types/node": ^26.6.11
