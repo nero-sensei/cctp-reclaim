@@ -120,20 +120,30 @@ describe("forwarding", () => {
     expect(upstream).toHaveBeenCalledTimes(UPSTREAMS.length);
   });
 
-  test("proxies websocket upgrades without leaking client headers", async () => {
-    await call(null, {
+  test("opens upstream websockets without leaking client headers or a refused upstream", async () => {
+    upstream.mockResolvedValueOnce(new Response("secret-a upstream page", { status: 401 }));
+    const response = await call(null, {
       method: "GET",
-      headers: { upgrade: "WebSocket", cookie: "session=1", "cf-connecting-ip": "1.2.3.4" },
+      headers: {
+        upgrade: "WebSocket",
+        cookie: "session=1",
+        "cf-connecting-ip": "1.2.3.4",
+        "sec-websocket-key": "k",
+      },
     });
     const [url, init] = upstream.mock.calls[0] ?? [];
     const sent = new Headers(init?.headers);
     expect(UPSTREAMS).toContain(url);
-    expect(sent.get("upgrade")).toBe("websocket");
-    expect([sent.has("origin"), sent.has("cookie"), sent.has("cf-connecting-ip")]).toEqual([
-      false,
-      false,
-      false,
-    ]);
+    expect([...sent.keys()].toSorted()).toEqual(["sec-websocket-key", "upgrade"]);
+    expect(response.status).toBe(502);
+    expect(await response.text()).not.toMatch(/secret|example/);
+  });
+
+  test("tries every upstream when a websocket upgrade throws or is refused", async () => {
+    upstream.mockRejectedValueOnce(new TypeError("fetch failed"));
+    const response = await call(null, { method: "GET", headers: { upgrade: "websocket" } });
+    expect(response.status).toBe(502);
+    expect(new Set(calledUrls())).toEqual(new Set(UPSTREAMS));
   });
 
   test("allows getProgramAccounts with a memcmp filter", async () => {
