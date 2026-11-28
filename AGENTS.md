@@ -8,10 +8,12 @@ jigs: small tools served at jigs.fyi. One tool, one problem, kept small.
 
 ## Layout
 
-| Path            | What                                                                                                                                                                       |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/cctp` | Finds the CCTP message accounts a wallet paid rent for, fetches Circle attestations, builds reclaim instructions. `scan` and `stats` CLIs                                  |
-| `apps/rpc`      | Cloudflare Worker at `rpc.jigs.fyi`. Rotates Solana RPC upstreams with failover, origin and method allowlists, per-IP rate limit, WebSocket subscription allowlist and cap |
+| Path              | What                                                                                                                                                                       |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/cctp`   | Finds the CCTP message accounts a wallet paid rent for, fetches Circle attestations, builds reclaim instructions. `scan` and `stats` CLIs                                  |
+| `packages/rent`   | Finds a wallet's token accounts (Token and Token-2022): closes empty ones, withdraws excess rent from the rest, skips what it must not touch. `scan` CLI                   |
+| `packages/solana` | Shared Solana helpers used by more than one tool. Today: plan and simulate instructions for the CLIs                                                                       |
+| `apps/rpc`        | Cloudflare Worker at `rpc.jigs.fyi`. Rotates Solana RPC upstreams with failover, origin and method allowlists, per-IP rate limit, WebSocket subscription allowlist and cap |
 
 Adding a tool:
 
@@ -46,6 +48,7 @@ vp run -r test
 vp run @jigs/rpc#dev              # needs apps/rpc/.dev.vars with RPC_URLS and ALLOWED_ORIGINS
 RPC_URL=<url> vp run @jigs/cctp#scan <wallet> --simulate
 RPC_URL=<url> vp run @jigs/cctp#stats
+RPC_URL=<url> vp run @jigs/rent#scan <wallet> --simulate
 ```
 
 ## Code rules
