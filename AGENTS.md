@@ -68,10 +68,9 @@ RPC_URL=<url> vp run @jigs/cctp#stats
 - Never sign or send a mainnet transaction. Simulate instead.
 - One branch per change in `.worktrees/<name>`, Conventional Commits, PR to `main`. The maintainer merges. Never force-push.
 - No Dependabot or Renovate. Upgrades are by hand: bump the catalog, `vp check`, tests.
-- CI stays one job: `vp check` and tests. No extra workflows, bots or required checks.
-- Pin GitHub Actions to a commit SHA with the version in a trailing comment.
+- No CI, no bots, no required checks. `pnpm ready` passing locally is the gate before every push.
 
 ## Before you say done
 
-- Run `vp check` and `vp run -r test`. Say what ran and what didn't.
+- Run `pnpm ready`. Say what ran and what didn't.
 - Re-read the whole diff as a hostile reviewer. Get a fresh-context review for anything that builds transactions or touches the RPC proxy.
