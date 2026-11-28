@@ -39,7 +39,7 @@ const instructions: Instruction[] = [];
 for (const account of accounts) {
   if (!isUnlocked(account)) {
     console.log(
-      `locked ${account.address} until ${new Date(account.unlocksAt! * 1000).toISOString()}`,
+      `locked ${account.address} until ${new Date((account.unlocksAt ?? 0) * 1000).toISOString()}`,
     );
     continue;
   }

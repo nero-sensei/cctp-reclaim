@@ -32,7 +32,9 @@ function hex(value: unknown, label: string): ReadonlyUint8Array {
 
 async function getJson(url: string): Promise<unknown> {
   const response = await fetch(url);
-  return response.ok ? response.json() : null;
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Circle answered ${response.status}, try again later`);
+  return response.json();
 }
 
 export async function fetchAttestation(

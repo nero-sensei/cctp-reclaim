@@ -10,7 +10,7 @@ import {
 } from "@solana/kit";
 import { rpcTransactionPlanner } from "@solana/kit-plugin-rpc";
 import { describe, expect, test } from "vite-plus/test";
-import { PROGRAMS } from "./constants.ts";
+import { MAX_RECLAIMS_PER_TRANSACTION, PROGRAMS } from "./constants.ts";
 import { addressOf, attestationFor, eventAccount, payer } from "./fixtures.ts";
 import { getReclaimInstruction } from "./instruction.ts";
 
@@ -91,7 +91,12 @@ describe("transaction packing", () => {
   ];
 
   const plan = async (version: 0 | 1) => {
-    const client = createClient({ payer: signer }).use(rpcTransactionPlanner({ version }));
+    const client = createClient({ payer: signer }).use(
+      rpcTransactionPlanner({
+        version,
+        maxInstructionsPerTransaction: MAX_RECLAIMS_PER_TRANSACTION,
+      }),
+    );
     return flattenTransactionPlan(await client.planTransactions(reclaims)).map(
       (single) => single.message,
     );
@@ -108,6 +113,7 @@ describe("transaction packing", () => {
         expect(getTransactionMessageSize(message)).toBeLessThanOrEqual(
           getTransactionMessageSizeLimit(message),
         );
+        expect(message.instructions.length).toBeLessThanOrEqual(MAX_RECLAIMS_PER_TRANSACTION);
       }
     },
   );

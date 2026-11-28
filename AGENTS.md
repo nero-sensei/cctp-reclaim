@@ -35,8 +35,11 @@ Don't swap any of these without asking.
 
 ## Commands
 
+`vp` is the Vite+ CLI. Without a global install, use `pnpm exec vp`.
+
 ```bash
 pnpm install                      # also generates Worker runtime types
+pnpm ready                        # vp check + all tests
 vp check                          # format, lint, type-check
 vp check --fix
 vp run -r test
@@ -52,7 +55,7 @@ RPC_URL=<url> vp run @jigs/cctp#stats
 - Small files with one job. Match the neighbouring file.
 - No new dependency, abstraction, helper or file without a concrete second use. No speculative features, flags or config.
 - Kit moves fast. Read the installed `.d.ts` before using an API, never write it from memory.
-- Everything from the network (RPC, Circle, wallets, request bodies) is `unknown` until narrowed. No `as` outside tests.
+- Everything from the network (RPC, Circle, wallets, request bodies) is `unknown` until narrowed. No `as` outside tests, except narrowing to a Kit nominal type that has no constructor.
 - Amounts are `bigint` lamports end to end. Never floats.
 - Transactions: return instructions, let the Kit planner pack them. Plan v1 when the wallet supports it, v0 otherwise. Cap instructions per transaction by measured compute, not just bytes, and simulate before claiming a batch size works.
 - Every behaviour change ships with a test that fails before and passes after. Tests try to break things: wrong signer, wrong offset, truncated data, boundaries, failover, leaked secrets. No tests that restate the code.
@@ -65,6 +68,7 @@ RPC_URL=<url> vp run @jigs/cctp#stats
 - Never sign or send a mainnet transaction. Simulate instead.
 - One branch per change in `.worktrees/<name>`, Conventional Commits, PR to `main`. The maintainer merges. Never force-push.
 - No Dependabot or Renovate. Upgrades are by hand: bump the catalog, `vp check`, tests.
+- CI stays one job: `vp check` and tests. No extra workflows, bots or required checks.
 - Pin GitHub Actions to a commit SHA with the version in a trailing comment.
 
 ## Before you say done

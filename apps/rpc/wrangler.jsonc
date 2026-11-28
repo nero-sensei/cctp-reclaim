@@ -3,6 +3,8 @@
   "name": "jigs-rpc",
   "main": "src/index.ts",
   "compatibility_date": "2026-11-28",
+  "workers_dev": false,
+  "preview_urls": false,
   "routes": [{ "pattern": "rpc.jigs.fyi", "custom_domain": true }],
   "vars": {
     "ALLOWED_ORIGINS": "https://jigs.fyi",

@@ -65,10 +65,9 @@ describe("guards", () => {
 
   test.each([
     ["a method outside the allowlist", rpc("getBlock")],
-    ["a batch hiding one disallowed method", [rpc("getBalance"), rpc("requestAirdrop")]],
-    ["an empty batch", []],
-    ["an oversized batch", Array.from({ length: 21 }, () => rpc("getBalance"))],
+    ["a batch", [rpc("getBalance")]],
     ["a call without a method", { jsonrpc: "2.0", id: 1 }],
+    ["getProgramAccounts without a memcmp filter", rpc("getProgramAccounts")],
   ])("refuses %s", async (_label, body) => {
     expect((await call(body)).status).toBe(400);
     expect(upstream).not.toHaveBeenCalled();
@@ -98,6 +97,7 @@ describe("forwarding", () => {
   test.each([
     ["a 429", () => Promise.resolve(new Response("", { status: 429 }))],
     ["a 503", () => Promise.resolve(new Response("", { status: 503 }))],
+    ["a 401 from a bad key", () => Promise.resolve(new Response("", { status: 401 }))],
     ["a network error", () => Promise.reject(new TypeError("fetch failed"))],
   ])("fails over to the next upstream on %s", async (_label, failure) => {
     upstream.mockImplementationOnce(failure);
@@ -120,8 +120,27 @@ describe("forwarding", () => {
     expect(upstream).toHaveBeenCalledTimes(UPSTREAMS.length);
   });
 
-  test("proxies websocket upgrades to an upstream", async () => {
-    await call(null, { method: "GET", headers: { upgrade: "websocket" } });
-    expect(UPSTREAMS).toContain(calledUrls()[0]);
+  test("proxies websocket upgrades without leaking client headers", async () => {
+    await call(null, {
+      method: "GET",
+      headers: { upgrade: "WebSocket", cookie: "session=1", "cf-connecting-ip": "1.2.3.4" },
+    });
+    const [url, init] = upstream.mock.calls[0] ?? [];
+    const sent = new Headers(init?.headers);
+    expect(UPSTREAMS).toContain(url);
+    expect(sent.get("upgrade")).toBe("websocket");
+    expect([sent.has("origin"), sent.has("cookie"), sent.has("cf-connecting-ip")]).toEqual([
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  test("allows getProgramAccounts with a memcmp filter", async () => {
+    const body = {
+      ...rpc("getProgramAccounts"),
+      params: ["P", { filters: [{ memcmp: { offset: 0, bytes: "x" } }] }],
+    };
+    expect((await call(body)).status).toBe(200);
   });
 });

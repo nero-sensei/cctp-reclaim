@@ -1,4 +1,4 @@
-import { createSolanaRpc, decimalFixedPointToString, lamports, lamportsToSol } from "@solana/kit";
+import { createSolanaRpc } from "@solana/kit";
 import { countOpenAccounts } from "../index.ts";
 
 const rpcUrl = process.env.RPC_URL;
@@ -14,8 +14,7 @@ const totals = await countOpenAccounts(createSolanaRpc(rpcUrl), {
 console.log(
   JSON.stringify(
     totals,
-    (_key, value) =>
-      typeof value === "bigint" ? decimalFixedPointToString(lamportsToSol(lamports(value))) : value,
+    (_key, value) => (typeof value === "bigint" ? value.toString() : value),
     2,
   ),
 );

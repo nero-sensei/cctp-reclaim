@@ -34,6 +34,13 @@ describe("v1", () => {
     expect(await fetchAttestation(rpcWithSignatures([]) as never, eventAccount("v1"))).toBeNull();
   });
 
+  test("throws when Circle is rate limiting or down instead of reporting pending", async () => {
+    respond(429, {});
+    await expect(
+      fetchAttestation(rpcWithSignatures([]) as never, eventAccount("v1")),
+    ).rejects.toThrow(/429/);
+  });
+
   test.each([["0x"], ["0xabc"], ["0xzz"], [null]])(
     "throws on an unreadable attestation %s",
     async (attestation) => {

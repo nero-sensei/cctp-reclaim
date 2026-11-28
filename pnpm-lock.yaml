@@ -224,6 +224,9 @@ importers:
 
   apps/rpc:
     devDependencies:
+      vite-plus:
+        specifier: 'catalog:'
+        version: 1.8.0(@types/node@26.6.11)(@vitest/ui@5.1.1)(esbuild@0.28.2)(typescript@7.0.2)
       wrangler:
         specifier: 'catalog:'
         version: 4.168.0(@types/node@26.6.11)(vitest@5.1.1)

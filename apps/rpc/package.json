@@ -9,6 +9,7 @@
     "test": "vp test"
   },
   "devDependencies": {
+    "vite-plus": "catalog:",
     "wrangler": "catalog:"
   }
 }

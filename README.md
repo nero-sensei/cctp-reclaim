@@ -9,8 +9,7 @@ Small tools. [jigs.fyi](https://jigs.fyi)
 
 ```bash
 pnpm install
-vp check
-vp run -r test
+pnpm ready
 ```
 
 MIT. Not affiliated with Circle or Solana. Use at your own risk.

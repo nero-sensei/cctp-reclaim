@@ -1,9 +1,7 @@
 const ALLOWED = new Set([
   "getAccountInfo",
   "getBalance",
-  "getBlockHeight",
   "getEpochInfo",
-  "getFeeForMessage",
   "getLatestBlockhash",
   "getMinimumBalanceForRentExemption",
   "getMultipleAccounts",
@@ -12,28 +10,24 @@ const ALLOWED = new Set([
   "getSignatureStatuses",
   "getSignaturesForAddress",
   "getSlot",
-  "getTokenAccountBalance",
-  "getTokenAccountsByOwner",
-  "getTransaction",
   "isBlockhashValid",
   "sendTransaction",
   "simulateTransaction",
 ]);
 
-const MAX_BATCH = 20;
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
 
-export function isAllowed(body: unknown): boolean {
-  const calls = Array.isArray(body) ? body : [body];
+function hasMemcmpFilter(params: unknown): boolean {
+  const config: unknown = Array.isArray(params) ? params[1] : null;
   return (
-    calls.length > 0 &&
-    calls.length <= MAX_BATCH &&
-    calls.every(
-      (call: unknown) =>
-        typeof call === "object" &&
-        call !== null &&
-        "method" in call &&
-        typeof call.method === "string" &&
-        ALLOWED.has(call.method),
-    )
+    isRecord(config) &&
+    Array.isArray(config.filters) &&
+    config.filters.some((filter: unknown) => isRecord(filter) && isRecord(filter.memcmp))
   );
+}
+
+export function isAllowed(call: unknown): boolean {
+  if (!isRecord(call) || typeof call.method !== "string" || !ALLOWED.has(call.method)) return false;
+  return call.method !== "getProgramAccounts" || hasMemcmpFilter(call.params);
 }
