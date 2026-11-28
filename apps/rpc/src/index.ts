@@ -1,5 +1,6 @@
 import { isAllowed } from "./methods.ts";
 import { forward, parseUpstreams, rotation } from "./upstreams.ts";
+import { proxyWebSocket } from "./websocket.ts";
 
 export interface Env {
   RPC_URLS: string;
@@ -34,15 +35,6 @@ function rateLimitKey(ip: string): string {
   return ip.includes(":") ? ip.split(":").slice(0, 4).join(":") : ip;
 }
 
-function websocketHeaders(request: Request): Headers {
-  const headers = new Headers({ upgrade: "websocket" });
-  for (const name of ["sec-websocket-key", "sec-websocket-version", "sec-websocket-protocol"]) {
-    const value = request.headers.get(name);
-    if (value) headers.set(name, value);
-  }
-  return headers;
-}
-
 export default {
   async fetch(request, env): Promise<Response> {
     const origin = request.headers.get("origin") ?? "";
@@ -64,7 +56,8 @@ export default {
     if (!upstream) return rpcError(503, -32603, "no upstream configured", headers);
 
     if (request.headers.get("upgrade")?.toLowerCase() === "websocket") {
-      return fetch(upstream, { headers: websocketHeaders(request) });
+      const response = await proxyWebSocket(upstream, request);
+      return response ?? rpcError(502, -32603, "upstream refused websocket", headers);
     }
 
     if (request.method !== "POST") return rpcError(405, -32600, "use POST", headers);

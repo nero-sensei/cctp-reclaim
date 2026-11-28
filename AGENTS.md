@@ -8,10 +8,10 @@ jigs: small tools served at jigs.fyi. One tool, one problem, kept small.
 
 ## Layout
 
-| Path            | What                                                                                                                                                    |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/cctp` | Finds the CCTP message accounts a wallet paid rent for, fetches Circle attestations, builds reclaim instructions. `scan` and `stats` CLIs               |
-| `apps/rpc`      | Cloudflare Worker at `rpc.jigs.fyi`. Rotates Solana RPC upstreams with failover, origin and method allowlists, per-IP rate limit, WebSocket passthrough |
+| Path            | What                                                                                                                                                                       |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/cctp` | Finds the CCTP message accounts a wallet paid rent for, fetches Circle attestations, builds reclaim instructions. `scan` and `stats` CLIs                                  |
+| `apps/rpc`      | Cloudflare Worker at `rpc.jigs.fyi`. Rotates Solana RPC upstreams with failover, origin and method allowlists, per-IP rate limit, WebSocket subscription allowlist and cap |
 
 Adding a tool:
 
