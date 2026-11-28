@@ -1,16 +1,16 @@
 {
-  "generatedAt": "2026-11-27T08:00:54.309Z",
-  "accounts": 1007773,
-  "lamports": 3227552559931,
-  "wallets": 272753,
+  "generatedAt": "2026-11-28T08:12:54.538Z",
+  "accounts": 1009009,
+  "lamports": 3231302971842,
+  "wallets": 272915,
   "v1": {
-    "accounts": 682318,
-    "lamports": 1986756319712,
-    "wallets": 222943
+    "accounts": 682297,
+    "lamports": 1986653873312,
+    "wallets": 222949
   },
   "v2": {
-    "accounts": 325455,
-    "lamports": 1240796240219,
-    "wallets": 60121
+    "accounts": 326712,
+    "lamports": 1244649098530,
+    "wallets": 60291
   }
 }
